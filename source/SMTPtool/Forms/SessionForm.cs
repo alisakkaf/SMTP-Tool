@@ -36,7 +36,6 @@ namespace SMTPtool
 
         public void connect()
         {
-            //dirty workaround to stop the main window from freezing during establishing the connection
             connectionDelayTimer = new System.Timers.Timer();
             connectionDelayTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
             connectionDelayTimer.Interval = 100;
@@ -87,8 +86,6 @@ namespace SMTPtool
                 ctThread = new System.Threading.Thread(new ThreadStart(Run));
                 ctThread.IsBackground = true;
                 ctThread.Start();
-                //txtOutput.AppendText("Connected to " + serverIP + " on port" + serverPort + "\r\n", Color.Red);
-
             }
             catch (Exception)
             {
@@ -236,10 +233,7 @@ namespace SMTPtool
         {
             try
             {
-                // ctThread.Abort();
-                //  clientSocket.Close();
                 this.BeginInvoke(new MethodInvoker(Close));
-
             }
             catch (Exception exception)
             {
@@ -279,7 +273,6 @@ namespace SMTPtool
                 hisItems.RemoveAt(lbxHistory.SelectedIndex);
                 lbxHistory.DataSource = null;
                 lbxHistory.DataSource = hisItems;
-                //Debug.WriteLine("Selected Index: " + selectedIndex);
                 if (selectedIndex == 0)
                 {
                     if (hisItems.Count > 0)
@@ -347,14 +340,12 @@ namespace SMTPtool
 
         private void scrollDownHist()
         {
-            //scroll history list box to bottom
             int visibleItems = lbxHistory.ClientSize.Height / lbxHistory.ItemHeight;
             lbxHistory.TopIndex = Math.Max(lbxHistory.Items.Count - visibleItems + 1, 0);
         }
 
         private void scrollDownOutput()
         {
-            // scroll output box to bottom
             txtOutput.SelectionStart = txtOutput.Text.Length;
             txtOutput.ScrollToCaret();
         }
@@ -393,7 +384,6 @@ namespace SMTPtool
             scrollDownHist();
         }
 
-
         private void btnReset_Click(object sender, EventArgs e)
         {
             hisItems.Add("rset");
@@ -405,8 +395,6 @@ namespace SMTPtool
             Write();
             scrollDownHist();
         }
-
-
 
     }
 }
