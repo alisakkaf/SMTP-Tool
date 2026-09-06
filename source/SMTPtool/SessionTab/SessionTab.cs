@@ -10,7 +10,7 @@ using System.Threading;
 using System.Diagnostics;
 using System.Net.Sockets;
 
-namespace SMTPtestTool
+namespace SMTPtool
 {
     public class SessionTab
     {
@@ -32,7 +32,6 @@ namespace SMTPtestTool
         System.Timers.Timer connectionDelayTimer;
         System.Timers.Timer reconnectionDelayTimer;
 
-        //constructor
         public SessionTab(Main _linkToMain)
         {
             this._linkToMain = _linkToMain;
@@ -41,7 +40,6 @@ namespace SMTPtestTool
 
         public void connect()
         {
-            //dirty workaround to stop the main window from freezing during establishing the connection
             connectionDelayTimer = new System.Timers.Timer();
             connectionDelayTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
             connectionDelayTimer.Interval = 100;
@@ -56,7 +54,7 @@ namespace SMTPtestTool
 
         public void start()
         {
-           
+
             _linkToMain.Invoke((MethodInvoker)delegate()
             {
                 if (_linkToMain.cbxSessionServer.Text.Equals(""))
@@ -146,7 +144,7 @@ namespace SMTPtestTool
                 {
                     _linkToMain.txtSessionOutput.AppendText("Connecting to " + serverIP + " on port" + serverPort + "\r\n\r\n", Color.Red);
                 });
-                
+
                 clientSocket = new System.Net.Sockets.TcpClient();
                 clientSocket.Connect(serverIP, serverPort);
                 ctThread = new System.Threading.Thread(new ThreadStart(Run));
@@ -205,14 +203,12 @@ namespace SMTPtestTool
 
         private void scrollDownHist()
         {
-            //scroll history list box to bottom
             int visibleItems = _linkToMain.lbxSessionHistory.ClientSize.Height / _linkToMain.lbxSessionHistory.ItemHeight;
             _linkToMain.lbxSessionHistory.TopIndex = Math.Max(_linkToMain.lbxSessionHistory.Items.Count - visibleItems + 1, 0);
         }
 
         private void scrollDownOutput()
         {
-            // scroll output box to bottom
             _linkToMain.txtSessionOutput.SelectionStart = _linkToMain.txtSessionOutput.Text.Length;
             _linkToMain.txtSessionOutput.ScrollToCaret();
         }
@@ -362,7 +358,6 @@ namespace SMTPtestTool
                 hisItems.RemoveAt(_linkToMain.lbxSessionHistory.SelectedIndex);
                 _linkToMain.lbxSessionHistory.DataSource = null;
                 _linkToMain.lbxSessionHistory.DataSource = hisItems;
-                //Debug.WriteLine("Selected Index: " + selectedIndex);
                 if (selectedIndex == 0)
                 {
                     if (hisItems.Count > 0)
