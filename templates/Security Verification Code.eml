@@ -1,0 +1,29 @@
+From: "Account Authentication" <auth@service.example>
+To: "Account Holder" <developer@example.com>
+Subject: 582-910 is your authentication code
+Date: Sun, 06 Sep 2026 12:15:00 +0000
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Your Verification Code</title>
+</head>
+<body style="font-family: monospace, Arial; background-color: #f1f5f9; margin: 0; padding: 30px;">
+    <div style="max-width: 500px; margin: auto; background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e1; padding: 30px; text-align: center;">
+        <h2 style="font-family: Arial, sans-serif; color: #1e293b; margin-top: 0;">Verification Code</h2>
+        <p style="font-family: Arial, sans-serif; color: #64748b; font-size: 14px;">Please enter the following one-time verification code to proceed:</p>
+        
+        <div style="background-color: #f8fafc; border: 2px dashed #94a3b8; border-radius: 6px; padding: 18px; margin: 25px 0; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0f172a;">
+            582-910
+        </div>
+        
+        <p style="font-family: Arial, sans-serif; color: #94a3b8; font-size: 12px; line-height: 1.5;">
+            This code expires in 10 minutes. Never share this code with anyone.
+        </p>
+    </div>
+</body>
+</html>
