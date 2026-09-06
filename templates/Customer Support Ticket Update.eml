@@ -1,0 +1,33 @@
+From: "Customer Care Desk" <support@helpdesk.example>
+To: "Customer" <client@example.com>
+Subject: [Ticket #TCK-44019] Status Update: Resolved
+Date: Sun, 06 Sep 2026 12:30:00 +0000
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Ticket Update</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 25px;">
+    <div style="max-width: 580px; margin: auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 30px;">
+        <h3 style="color: #1f2937; margin-top: 0;">Support Ticket #TCK-44019 Resolved</h3>
+        <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">
+            Hello,<br><br>
+            Your support request regarding <strong>"SMTP Connection Timeout on Port 587"</strong> has been resolved by our technical engineering team.
+        </p>
+        <div style="background-color: #f3f4f6; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; font-size: 13px; color: #374151;">
+            <strong>Resolution Notes:</strong><br>
+            Firewall outbound rules have been updated and TLS 1.2 negotiation verified across all mail gateway nodes.
+        </div>
+        <p style="color: #4b5563; font-size: 14px;">
+            If you need further assistance, simply reply directly to this email to reopen the conversation.
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;">
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">Helpdesk Support System &bull; 24/7 Operations</p>
+    </div>
+</body>
+</html>
