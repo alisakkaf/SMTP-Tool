@@ -1,0 +1,49 @@
+From: "Store Orders" <orders@store.example>
+To: "Customer" <buyer@example.com>
+Subject: Order Confirmation #ORD-98421
+Date: Sun, 06 Sep 2026 12:10:00 +0000
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Order Confirmation #ORD-98421</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 25px;">
+    <div style="max-width: 600px; margin: auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 30px;">
+        <h2 style="color: #10b981; margin-top: 0;">Order Confirmed!</h2>
+        <p style="color: #374151; font-size: 15px;">Thank you for your purchase. We have received your order and are currently preparing it for shipment.</p>
+        
+        <table style="width: 100%; border-collapse: collapse; margin: 25px 0;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
+                    <th style="padding: 10px; color: #4b5563;">Item</th>
+                    <th style="padding: 10px; color: #4b5563; text-align: center;">Qty</th>
+                    <th style="padding: 10px; color: #4b5563; text-align: right;">Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom: 1px solid #f3f4f6;">
+                    <td style="padding: 12px 10px; color: #1f2937;">Developer Pro License</td>
+                    <td style="padding: 12px 10px; text-align: center; color: #4b5563;">1</td>
+                    <td style="padding: 12px 10px; text-align: right; color: #1f2937; font-weight: 600;">$49.00</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #f3f4f6;">
+                    <td style="padding: 12px 10px; color: #1f2937;">Priority Support Addon</td>
+                    <td style="padding: 12px 10px; text-align: center; color: #4b5563;">1</td>
+                    <td style="padding: 12px 10px; text-align: right; color: #1f2937; font-weight: 600;">$19.00</td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="padding: 15px 10px; text-align: right; font-weight: bold; color: #111827;">Total:</td>
+                    <td style="padding: 15px 10px; text-align: right; font-weight: bold; color: #10b981; font-size: 18px;">$68.00</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p style="color: #6b7280; font-size: 13px;">A copy of your receipt has been saved in your account dashboard.</p>
+    </div>
+</body>
+</html>
