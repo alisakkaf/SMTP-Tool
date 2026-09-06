@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Xml.Linq;
 using System.IO;
 using System.Reflection;
-using SMTPtestTool;
 
 namespace SMTPtool.helper
 {
@@ -24,15 +23,16 @@ namespace SMTPtool.helper
         {
             try
             {
-                var doc = XDocument.Load(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "\\config.xml");
-                Debug.WriteLine("PATH:" + Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "\\config.xml");
+                string baseDir = Path.GetDirectoryName(Assembly.GetEntryAssembly() != null ? Assembly.GetEntryAssembly().Location : AppDomain.CurrentDomain.BaseDirectory);
+                string configPath = Path.Combine(baseDir, "config.xml");
+                if (!File.Exists(configPath)) return;
+                var doc = XDocument.Load(configPath);
 
                 doc.Element("configuration").Element("server");
 
                 foreach (var singleEntry in doc.Element("configuration").Element("servers").Elements("entry"))
                 {
                     _linkToMain.serverList.Add(singleEntry.Attribute("value").Value);
-                    //Debug.WriteLine(singleEntry.Attribute("value").Value);
                 }
                 _linkToMain.cbxServer.DataSource = _linkToMain.serverList;
                 _linkToMain.cbxRemailIP.DataSource = _linkToMain.serverList;
@@ -41,7 +41,6 @@ namespace SMTPtool.helper
                 foreach (var singleEntry in doc.Element("configuration").Element("fromAddresses").Elements("entry"))
                 {
                     _linkToMain.mailFromList.Add(singleEntry.Attribute("value").Value);
-                    // Debug.WriteLine(singleEntry.Attribute("value").Value);
                 }
                 _linkToMain.cbxFrom.DataSource = _linkToMain.mailFromList;
                 _linkToMain.cbxRemailFrom.DataSource = _linkToMain.mailFromList;
@@ -50,7 +49,6 @@ namespace SMTPtool.helper
                 foreach (var singleEntry in doc.Element("configuration").Element("toAddresses").Elements("entry"))
                 {
                     _linkToMain.mailToList.Add(singleEntry.Attribute("value").Value);
-                    // Debug.WriteLine(singleEntry.Attribute("value").Value);
                 }
                 _linkToMain.cbxTo.DataSource = _linkToMain.mailToList;
                 _linkToMain.cbxRemailTo.DataSource = _linkToMain.mailToList;
@@ -58,7 +56,6 @@ namespace SMTPtool.helper
             }
             catch { }
         }
-
 
         public void writeXML()
         {
@@ -85,7 +82,7 @@ namespace SMTPtool.helper
                     xmlWriter.WriteStartElement("entry");
                     xmlWriter.WriteAttributeString("value", _linkToMain.serverList[i - 1]);
                     xmlWriter.WriteEndElement();
-                }                
+                }
                 xmlWriter.WriteEndElement();
 
                 xmlWriter.WriteStartElement("fromAddresses");
@@ -105,7 +102,7 @@ namespace SMTPtool.helper
                     xmlWriter.WriteEndElement();
                 }
                 xmlWriter.WriteEndElement();
-               
+
                 xmlWriter.WriteEndDocument();
                 xmlWriter.Close();
                 Debug.WriteLine("XML written");
@@ -115,7 +112,6 @@ namespace SMTPtool.helper
                 Debug.WriteLine("XML writing error");
             }
         }
-
 
     }
 }
