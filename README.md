@@ -26,6 +26,35 @@ Whether verifying outbound mail connectivity on local development environments, 
 
 ---
 
+## Screenshots & Interface Walkthrough
+
+<p align="center">
+  <img src="image/main-send-test.png" alt="SMTP Tool - Send & Test Email Dashboard" width="100%">
+</p>
+
+<details open>
+<summary><strong>📸 Additional Views & Diagnostic Tabs (Click to expand / collapse)</strong></summary>
+<br>
+
+### 1. Delivery History & Engagement Tracking
+<p align="center">
+  <img src="image/delivery-history.png" alt="Delivery History & Engagement Tracking" width="100%">
+</p>
+
+### 2. Clean Template Explorer & EML Remailer
+<p align="center">
+  <img src="image/templates-remailer.png" alt="Clean Template Explorer & EML Remailer" width="100%">
+</p>
+
+### 3. Interactive Telnet SMTP Terminal & Protocol Console
+<p align="center">
+  <img src="image/interactive-terminal.png" alt="Interactive Telnet SMTP Terminal & Protocol Console" width="100%">
+</p>
+
+</details>
+
+---
+
 ## Features
 
 | Feature | Description |
