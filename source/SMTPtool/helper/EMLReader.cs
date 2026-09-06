@@ -70,7 +70,7 @@ namespace HLIB.MailFormats
             get { return _Subject; }
             set { _Subject = value; }
         }
-        
+
         private string _Content_Type;
         public string Content_Type
         {
@@ -158,25 +158,22 @@ namespace HLIB.MailFormats
                 GetFullValue(saAll, ref i, ref sFullValue);
                 list.Add(sFullValue);
 
-
                 Debug.WriteLine(sFullValue);
             }
 
             SetFields(list.ToArray());
 
-            if (nStartBody == -1)   // no body ?
+            if (nStartBody == -1)
                 return;
 
-            // Get the body info out of saAll and set the Body and/or HTMLBody properties
-            if (Content_Type != null && Content_Type.ToLower().Contains("multipart/alternative"))   // set for HTMLBody messages
+            if (Content_Type != null && Content_Type.ToLower().Contains("multipart/alternative"))
             {
-                int ix = Content_Type.ToLower().IndexOf("boundary");        // boundary is used to separate the different body types
+                int ix = Content_Type.ToLower().IndexOf("boundary");
                 if (ix == -1)
                     return;
 
                 string sBoundaryMarker = Content_Type.Substring(ix + 8).Trim(new char[] {'=', '"', ' ', '\t' });
 
-                // save this boundaries elements into a list of strings
                 list = new List<string>();
                 for (int n = nStartBody + 1; n < saAll.Length; n++)
                 {
@@ -193,7 +190,7 @@ namespace HLIB.MailFormats
                     list.Add(saAll[n]);
                 }
             }
-            else    // plain text body type only
+            else
             {
                 Body = string.Empty;
                 for (int n = nStartBody + 1; n < saAll.Length; n++)
@@ -209,7 +206,6 @@ namespace HLIB.MailFormats
 
             foreach (string s in list)
             {
-                // use to determine type of body
                 if (s.ToLower().StartsWith("content-type"))
                 {
                     if (s.ToLower().Contains("text/html"))
@@ -238,7 +234,7 @@ namespace HLIB.MailFormats
 
         private void GetFullValue(string[] sa, ref int i, ref string sValue)
         {
-            if (i + 1 < sa.Length && sa[i + 1] != string.Empty && char.IsWhiteSpace(sa[i + 1], 0))   // spec says line's that begin with white space are continuation lines
+            if (i + 1 < sa.Length && sa[i + 1] != string.Empty && char.IsWhiteSpace(sa[i + 1], 0))
             {
                 i++;
                 sValue += " " + sa[i].Trim();
@@ -249,13 +245,12 @@ namespace HLIB.MailFormats
 
         private void SetFields(string[] saLines)
         {
-            //List<string> listUnsupported = new List<string>();
             _listUnsupported = new Dictionary<string, string>();
             List<string> listX_Receiver = new List<string>();
             foreach (string sHdr in saLines)
             {
                 string[] saHdr = Split(sHdr);
-                if (saHdr == null)  // not a valid header
+                if (saHdr == null)
                     continue;
 
                 switch (saHdr[0].ToLower())
@@ -308,9 +303,6 @@ namespace HLIB.MailFormats
                             X_OriginalArrivalTime = DateTime.Parse(sOAT);
                         }
                         break;
-                    //case "body":
-                    //    Body = saHdr[1];
-                    //    break;
                     default:
                         _listUnsupported.Add(saHdr[0], saHdr[1]);
                         break;
@@ -321,40 +313,13 @@ namespace HLIB.MailFormats
             listX_Receiver.CopyTo(X_Receivers);
         }
 
-        private string[] Split(string sHeader)  // because string.Split won't work here...
+        private string[] Split(string sHeader)
         {
             int ix;
-            if((ix = sHeader.IndexOf(':')) == -1)
+            if ((ix = sHeader.IndexOf(':')) == -1)
                 return null;
 
             return new string[] { sHeader.Substring(0, ix).Trim(), sHeader.Substring(ix + 1).Trim() };
         }
     }
 }
-
-
-#if false
-"x-sender: jamieson@rl.gov\r\nx-receiver: c00ab5e1-2ab9-4502-ae27-0b00bd189089@develop.rl.gov\r\nReceived: from Develop ([130.97.35.161]) by Develop.rl.gov with Microsoft SMTPSVC(6.0.2600.5512);\r\n\t Fri, 12 Sep 2008 10:07:45 -0700\r\nMIME-Version: 1.0\r\nFrom: jamieson@rl.gov\r\nTo: c00ab5e1-2ab9-4502-ae27-0b00bd189089@develop.rl.gov\r\nDate: 12 Sep 2008 10:07:45 -0700\r\nSubject: A test subjectcd5ba966-5d29-45b0-80f8-fca89e0379aa\r\nContent-Type: text/plain; charset=us-ascii\r\nContent-Transfer-Encoding: quoted-printable\r\nReturn-Path: jamieson@rl.gov\r\nMessage-ID: <Developkl894nUTDd2h00000662@Develop.rl.gov>\r\nX-OriginalArrivalTime: 12 Sep 2008 17:07:45.0445 (UTC) FILETIME=[13452D50:01C914FA]\r\n\r\nThis is a test\r\n\r\n"
-
-
--------
-x-sender: jamieson@rl.gov
-x-receiver: c00ab5e1-2ab9-4502-ae27-0b00bd189089@develop.rl.gov
-Received: from Develop ([130.97.35.161]) by Develop.rl.gov with Microsoft SMTPSVC(6.0.2600.5512);
-	 Fri, 12 Sep 2008 10:07:45 -0700
-MIME-Version: 1.0
-From: jamieson@rl.gov
-To: c00ab5e1-2ab9-4502-ae27-0b00bd189089@develop.rl.gov
-Date: 12 Sep 2008 10:07:45 -0700
-Subject: A test subjectcd5ba966-5d29-45b0-80f8-fca89e0379aa
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-Return-Path: jamieson@rl.gov
-Message-ID: <Developkl894nUTDd2h00000662@Develop.rl.gov>
-X-OriginalArrivalTime: 12 Sep 2008 17:07:45.0445 (UTC) FILETIME=[13452D50:01C914FA]
-
-This is a test
-
--------
-
-#endif
