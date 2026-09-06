@@ -1,0 +1,33 @@
+From: "Acme Cloud Platform" <welcome@acme-cloud.example>
+To: "New User" <recipient@example.com>
+Subject: Welcome to Acme Cloud - Activate Your Account
+Date: Sun, 06 Sep 2026 12:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Welcome to Acme Cloud</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 30px;">
+    <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; padding: 40px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+        <h2 style="color: #2563eb; margin-top: 0;">Welcome to Acme Cloud!</h2>
+        <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
+            Thank you for creating an account with us. To complete your setup and begin deploying services, please verify your email address.
+        </p>
+        <div style="text-align: center; margin: 35px 0;">
+            <a href="https://example.com/activate?token=sample-activation-token" style="background-color: #2563eb; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Activate Account</a>
+        </div>
+        <p style="color: #9ca3af; font-size: 13px; line-height: 1.5;">
+            If you did not sign up for this account, please disregard this email.
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+        <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+            Acme Cloud Inc. &bull; 100 Innovation Way &bull; Cloud City
+        </p>
+    </div>
+</body>
+</html>
