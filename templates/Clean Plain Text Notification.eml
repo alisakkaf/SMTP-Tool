@@ -1,0 +1,22 @@
+From: "System Administrator" <admin@server.example>
+To: "Recipient" <user@example.com>
+Subject: Scheduled Maintenance Window Notification
+Date: Sun, 06 Sep 2026 12:35:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+Hello,
+
+This is an automated notification to inform you that scheduled routine system maintenance is planned for:
+
+Date: Saturday, September 12, 2026
+Time: 02:00 UTC - 04:00 UTC
+Expected Impact: Intermittent mail gateway connectivity for up to 5 minutes.
+
+All incoming emails will be queued automatically by secondary MX nodes and delivered immediately following completion.
+
+No action is required from your side.
+
+Regards,
+IT Infrastructure & Operations Team
