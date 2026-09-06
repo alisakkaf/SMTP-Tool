@@ -1,0 +1,28 @@
+## Visual Studio & MSBuild
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+
+## Publish
+publish/
+*.publishproj
+app.publish/
+
+## NuGet
+packages/
+*.nuget.props
+*.nuget.targets
