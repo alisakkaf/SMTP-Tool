@@ -1,58 +1,40 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Drawing;
-using SMTPtool;
-using System.Windows.Forms;
-using System.Diagnostics;
 using System.Net.Sockets;
+using System.Drawing;
+using System.Threading;
 using System.IO;
-using System.Collections;
+using System.Diagnostics;
+using System.Windows.Forms;
+using SMTPtool.helper;
 
-namespace SMTPtestTool
+namespace SMTPtool
 {
     public class Remailer
     {
+        private string serverIP;
+        private int serverPort;
+        private string commandToSend;
+        private string lastCommand = "none";
+        private string mailFrom;
+        private string rcptTo;
 
-        private String serverIP = "192.168.0.25";
-        private int serverPort = 25;
-        private String mailFrom;
-        private String rcptTo;
-
-        public List<string> serverList = new List<string>();
-        public List<string> mailFromList = new List<string>();
-        public List<string> mailToList = new List<string>();
-
-        private List<string> hisItems = new List<string>();
-        public String commandToSend = "";
         TcpClient clientSocket;
 
         private DateTime sendStart;
         private DateTime sendEnd;
-
-        private Boolean messageSent = false;
-
-        //prevents that mailFrom & rcptTo are send twice
-        //MIMEsweeper has an older SMTP RFC implemented
-        private Boolean mailFromSent = false;
-        private Boolean rcptToSent = false;
+        private bool messageSent = false;
+        private bool mailFromSent = false;
 
         public Main _linkToMain;
-
-        //public String mailBody;
-        public Boolean sendSingle;
-
-        //used to hold the path of the current file to remail when a folder has been selected
-        public String fullMailBody;
-
-        //number of data lines per Command
+        public bool sendSingle;
+        public string fullMailBody;
         private int chunkSize = 0;
 
         Thread ctThread;
 
-        //constructor
         public Remailer(Main _linkToMain)
         {
             this._linkToMain = _linkToMain;
@@ -67,7 +49,6 @@ namespace SMTPtestTool
             }
             serverIP = _linkToMain.cbxRemailIP.Text;
             _linkToMain.addServerToList(serverIP);
-
 
             try { int.Parse(_linkToMain.txtRemailPort.Text); }
             catch { _linkToMain.txtRemailPort.Text = "25"; }
@@ -101,85 +82,48 @@ namespace SMTPtestTool
             {
                 clientSocket = new TcpClient();
                 clientSocket.Connect(serverIP, serverPort);
-                ctThread = new System.Threading.Thread(new ThreadStart(Run));
+
+                ctThread = new Thread(new ThreadStart(run));
                 ctThread.IsBackground = true;
                 ctThread.Start();
-
                 sendStart = DateTime.Now;
-                if (sendSingle)
-                {
-                    _linkToMain.txtRemailOutput.AppendText(getTimeStamp() + " - Connecting to " + serverIP + " on port" + serverPort + "\r\n", Color.Red);
-                }
-
-                scrollDownOutput();
             }
-
-            catch (Exception)
+            catch (Exception exception)
             {
-                _linkToMain.txtRemailOutput.AppendText("Connection Error\r\n\r\n", Color.Red);
+                _linkToMain.txtRemailOutput.AppendText(">> Connection Error: " + exception.Message + "\r\n", Color.Red);
                 scrollDownOutput();
                 _linkToMain.btnRemail.Enabled = true;
             }
-
-            _linkToMain.myParser.writeXML();
         }
 
-        public void Run()
+        public void run()
         {
-            String strMessage;
-            String singleCommand;
-
-            String lastCommand = "none";
-
             while (true)
             {
+                string strMessage = read();
 
-                strMessage = Read();
-                Debug.WriteLine(strMessage);
-
-                _linkToMain.Invoke((MethodInvoker)delegate ()
+                if (strMessage == null)
                 {
-                    if (!strMessage.Equals(""))
+                    _linkToMain.Invoke((MethodInvoker)delegate()
                     {
-                        if (sendSingle)
+                        if (!messageSent)
                         {
-                            _linkToMain.txtRemailOutput.AppendText("<< " + strMessage, Color.Blue);
-                        }
-                    }
-                    scrollDownOutput();
-                });
-
-                singleCommand = strMessage.TrimEnd('\r', '\n');
-                singleCommand = singleCommand.ToLower();
-
-                if (strMessage.Equals(""))
-                {
-                    _linkToMain.Invoke((MethodInvoker)delegate ()
-                    {
-                        if (sendSingle)
-                        {
-                            _linkToMain.txtRemailOutput.AppendText("Connection closed\r\n\r\n", Color.Red);
+                            _linkToMain.txtRemailOutput.AppendText(">> Error: Connection lost or server reset connection\r\n", Color.Red);
                             scrollDownOutput();
                         }
                         clientSocket.Close();
                         ctThread.Abort();
                         _linkToMain.btnRemail.Enabled = true;
-
                     });
                     break;
                 }
-                // EHLO
                 else if (strMessage.StartsWith("220") && lastCommand.Equals("none"))
                 {
-
-                    //String hostname =
-                    String hostname = strMessage.Split(' ', ' ')[1];
-                    Debug.WriteLine("HOSTNAME: " + hostname);
+                    string hostname = strMessage.Split(' ', ' ')[1];
                     commandToSend = "HELO " + hostname;
                     lastCommand = "helo";
                     write();
                 }
-                //MAIL FROM
                 else if ((strMessage.StartsWith("250") && mailFromSent == false) && lastCommand.Equals("helo"))
                 {
                     commandToSend = "mail from: <" + mailFrom + ">";
@@ -187,14 +131,12 @@ namespace SMTPtestTool
                     lastCommand = "mailFrom";
                     write();
                 }
-                //RCPT TO
                 else if ((strMessage.StartsWith("250 2.1.0") || strMessage.StartsWith("250 " + mailFrom) || strMessage.StartsWith("250 Go ahead")) && lastCommand.Equals("mailFrom"))
-                { 
+                {
                     commandToSend = "rcpt to: <" + rcptTo + ">";
                     lastCommand = "rcpt";
                     write();
                 }
-                //DATA
                 else if ((strMessage.StartsWith("250 2.1.5") || strMessage.StartsWith("250 " + rcptTo) || strMessage.StartsWith("250 Go ahead")) && lastCommand.Equals("rcpt"))
                 {
                     commandToSend = "data";
@@ -203,26 +145,21 @@ namespace SMTPtestTool
                 }
                 else if (strMessage.StartsWith("354") && lastCommand.Equals("data"))
                 {
-                    //sending folder
-                    if (fullMailBody != null)
+                    if (fullMailBody == null)
                     {
-
-                    }
-                    //sending single file
-                    else
-                    {
-                        fullMailBody = _linkToMain.txtMailView.Text;
+                        fullMailBody = !string.IsNullOrEmpty(_linkToMain.remailTab?.currentRawMime)
+                            ? _linkToMain.remailTab.currentRawMime
+                            : _linkToMain.txtMailView.Text;
                     }
 
                     using (StringReader sr = new StringReader(fullMailBody))
                     {
-                        String line;
-                        String singleChunk = "";
-                        List<String> messageChunks = new List<string>();
+                        string line;
+                        string singleChunk = "";
+                        List<string> messageChunks = new List<string>();
                         int currentLine = 0;
                         while ((line = sr.ReadLine()) != null)
                         {
-                            //dont split it up in junks if chunk size set to 0
                             if (chunkSize == 0)
                             {
                                 singleChunk = singleChunk + line + "\r\n";
@@ -255,87 +192,55 @@ namespace SMTPtestTool
                             messageChunks.Add(singleChunk);
                         }
 
-                        //working code for progress bar
-                        //not useful if chunksize = 0
-                        //because the whole data part of the message is sent in one command
-
-                        int currentChunkNumber = 0;
-                        int numberOfChunks = messageChunks.Count;
-
-                        foreach (String chunk in messageChunks)
+                        foreach (string chunk in messageChunks)
                         {
-                            currentChunkNumber++;
-                            //Debug.WriteLine("singleChunk: " + chunk);
                             commandToSend = chunk;
                             writeChunk();
-                            /*
-                            _linkToMain.Invoke((MethodInvoker)delegate()
-                            {
-                                float percentage = (currentChunkNumber * 100) / numberOfChunks;
-                                _linkToMain.lblRemailProgressPercent.Text = percentage + "%";
-                                _linkToMain.remailProgress.Value = (int)Math.Round(percentage);
-                            });
-                             */
                         }
-                        /*
-                        _linkToMain.Invoke((MethodInvoker)delegate()
-                        {
-                            _linkToMain.lblRemailProgressPercent.Text = "100%";
-                            _linkToMain.remailProgress.Value = 100;
-                            //_linkToMain.toolStripStatusLabel1.Text = currentChunkNumber.ToString();
-                        });
-                         * */
-
                     }
                     commandToSend = ".";
                     lastCommand = "content";
                     write();
-
                 }
-                //QUIT
-                else if (strMessage.StartsWith("250")  && lastCommand.Equals("content"))
+                else if (strMessage.StartsWith("250") && lastCommand.Equals("content"))
                 {
-
                     messageSent = true;
                     sendEnd = DateTime.Now;
                     commandToSend = "quit";
-                    //Debug.WriteLine("linetosend " + lineNumber);
                     write();
-
                 }
                 else
                 {
-                    _linkToMain.Invoke((MethodInvoker)delegate ()
+                    _linkToMain.Invoke((MethodInvoker)delegate()
                     {
-                        Debug.WriteLine("send start: " + sendStart);
-                        Debug.WriteLine("send end: " + sendEnd);
-
                         if (messageSent)
                         {
-                            Debug.WriteLine("MESSAGE SENT SUCESSFULLY");
+                            _linkToMain.txtRemailOutput.AppendText(">> Message Sent Successfully\r\n", Color.DarkGreen);
                             TimeSpan duration = sendEnd - sendStart;
-                            _linkToMain.txtRemailOutput.AppendText(getTimeStamp() + " - Message sent successfully - duration " + Math.Round(duration.TotalSeconds, 2) + " seconds \r\n", Color.Red);
+                            _linkToMain.txtRemailOutput.AppendText(">> Duration: " + duration.TotalSeconds.ToString("0.00") + "s\r\n", Color.DarkGreen);
+                            scrollDownOutput();
+                            _linkToMain.btnRemail.Enabled = true;
+                            lastCommand = "none";
+                            mailFromSent = false;
+                            messageSent = false;
+                            clientSocket.Close();
+                            ctThread.Abort();
                         }
                         else
                         {
-                            Debug.WriteLine("MESSAGE NOT SENT");
-                            _linkToMain.txtRemailOutput.AppendText(getTimeStamp() + " - Message not sent \r\n", Color.Red);
+                            _linkToMain.txtRemailOutput.AppendText(">> Unexpected server response: " + strMessage + "\r\n", Color.Red);
+                            scrollDownOutput();
+                            _linkToMain.btnRemail.Enabled = true;
+                            clientSocket.Close();
+                            ctThread.Abort();
                         }
-                        if (sendSingle)
-                        {
-                            _linkToMain.txtRemailOutput.AppendText("Connection closed\r\n\r\n", Color.Red);
-                        }
-                        scrollDownOutput();
-                        clientSocket.Close();
-                        ctThread.Abort();
-                        _linkToMain.btnRemail.Enabled = true;
-
                     });
+                    break;
                 }
             }
         }
 
-        private String Read()
+        public string read()
         {
             try
             {
@@ -345,18 +250,31 @@ namespace SMTPtestTool
                 ASCIIEncoding encoder = new ASCIIEncoding();
                 bytesRead = clientStream.Read(messageBytes, 0, 8192);
                 string strMessage = encoder.GetString(messageBytes, 0, bytesRead);
+
+                if (strMessage.Equals(""))
+                {
+                    return null;
+                }
+
+                if (sendSingle)
+                {
+                    _linkToMain.Invoke((MethodInvoker)delegate()
+                    {
+                        _linkToMain.txtRemailOutput.AppendText("<< " + strMessage, Color.DarkBlue);
+                        scrollDownOutput();
+                    });
+                }
+
                 return strMessage;
             }
-            catch (Exception exception)
+            catch (Exception)
             {
-                Debug.WriteLine("EEEEEEEEEEEEEEERRROR: " + exception.Message);
                 scrollDownOutput();
                 clientSocket.Close();
                 return null;
             }
         }
 
-        //write method to send single line SMTP commands
         public void write()
         {
             if (clientSocket.Connected)
@@ -382,12 +300,11 @@ namespace SMTPtestTool
             }
         }
 
-        public String getTimeStamp()
+        public string getTimeStamp()
         {
             return DateTime.Now.ToString("MMM dd HH:mm:ss");
         }
 
-        //second send method used to write large data parts
         public void writeChunk()
         {
             if (clientSocket.Connected)
@@ -399,22 +316,7 @@ namespace SMTPtestTool
 
                 clientStream.Write(buffer, 0, buffer.Length);
                 clientStream.Flush();
-                /*
-                if (commandToSend.Length > 1000)
-                {
-                    _linkToMain.txtRemailOutput.AppendText(">> \r\n", Color.Green);
-                    IEnumerable<String> myChunks = Split(commandToSend, 100);
-                    foreach (String chunk in myChunks)
-                    {
-                        _linkToMain.txtRemailOutput.AppendText(chunk, Color.Green);
-                        scrollDownOutput();
-                    }
-                }
-                else {
-                    _linkToMain.txtRemailOutput.AppendText(">> \r\n" + commandToSend, Color.Green);
-                    scrollDownOutput();
-                }
-                 * */
+
                 if (sendSingle)
                 {
                     _linkToMain.txtRemailOutput.AppendText(">> \r\n" + commandToSend, Color.Green);
@@ -425,18 +327,11 @@ namespace SMTPtestTool
             }
         }
 
-        static IEnumerable<String> Split(String str, int chunkSize)
-        {
-            return Enumerable.Range(0, str.Length / chunkSize)
-                .Select(i => str.Substring(i * chunkSize, chunkSize));
-        }
-
         private void scrollDownOutput()
         {
-            // scroll output box to bottom
             try
             {
-                _linkToMain.Invoke((MethodInvoker)delegate ()
+                _linkToMain.Invoke((MethodInvoker)delegate()
                 {
                     _linkToMain.txtRemailOutput.SelectionStart = _linkToMain.txtRemailOutput.Text.Length;
                     _linkToMain.txtRemailOutput.ScrollToCaret();
@@ -447,6 +342,5 @@ namespace SMTPtestTool
                 Debug.WriteLine(e.Data);
             }
         }
-
     }
 }
