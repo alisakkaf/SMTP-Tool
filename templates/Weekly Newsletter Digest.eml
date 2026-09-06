@@ -1,0 +1,37 @@
+From: "Developer Insights Weekly" <newsletter@devinsights.example>
+To: "Subscriber" <reader@example.com>
+Subject: Developer Insights Weekly #42: Modernizing Legacy Stacks
+Date: Sun, 06 Sep 2026 12:25:00 +0000
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Developer Insights Weekly #42</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 25px;">
+    <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; padding: 30px; border: 1px solid #e2e8f0;">
+        <h2 style="color: #3b82f6; margin-top: 0; font-size: 22px;">Developer Insights Weekly</h2>
+        <p style="color: #64748b; font-size: 13px; margin-top: -10px;">Issue #42 &bull; Curated for Software Engineers</p>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+        
+        <h4 style="color: #1e293b; margin-bottom: 8px;">1. Rebuilding Legacy .NET Applications for High Performance</h4>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-top: 0;">
+            Upgrading legacy tooling requires meticulous attention to cryptographic protocols, clean UI threading, and modular architecture. Learn the top 5 patterns for seamless upgrades.
+        </p>
+        
+        <h4 style="color: #1e293b; margin-bottom: 8px;">2. Mastering SMTP Handshakes & TLS 1.3</h4>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-top: 0;">
+            Understanding RFC 5321 and RFC 3207: How modern mail transport agents negotiate encrypted connections safely.
+        </p>
+        
+        <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #94a3b8;">
+            You received this newsletter because you subscribed to Developer Insights.<br>
+            <a href="https://example.com/preferences" style="color: #64748b;">Manage Preferences</a> &bull; <a href="https://example.com/unsubscribe" style="color: #64748b;">Unsubscribe</a>
+        </div>
+    </div>
+</body>
+</html>
