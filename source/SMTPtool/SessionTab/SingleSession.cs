@@ -4,20 +4,16 @@ using System.Linq;
 using System.Text;
 using SMTPtool;
 
-namespace SMTPtestTool
+namespace SMTPtool
 {
     public class SingleSession
     {
-       // private String commandToSend;
-
-
         Main _linkToMain;
 
         public SingleSession(Main _linkToMain)
         {
             this._linkToMain = _linkToMain;
         }
-
 
         public void connect() { }
 
