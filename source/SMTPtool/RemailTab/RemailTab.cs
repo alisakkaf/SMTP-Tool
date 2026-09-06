@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,11 +11,10 @@ using System.Drawing;
 using System.Net.Mail;
 using HLIB.MailFormats;
 using System.Threading;
-using SMTPtestTool;
 using System.ComponentModel;
 using Microsoft.Win32;
 
-namespace SMTPtestTool
+namespace SMTPtool
 {
     public class RemailTab
     {
@@ -37,23 +36,23 @@ namespace SMTPtestTool
         private ToolStripMenuItem mnRemailFolderPaste;
 
         String mailboxPath;
-        static ImageList _imageList; //holds treeView icons
+        static ImageList _imageList;
         public TreeNode previousSelectedNode = null;
 
         public Boolean txtMailViewIsDirty = false;
         public Boolean txtMailViewCanBeDirty = false;
+        public string currentRawMime = "";
 
         public Boolean sendNext;
 
-        //constructor
         public RemailTab(Main _linkToMain)
         {
             this._linkToMain = _linkToMain;
 
             createDirectories();
-            mailboxPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "\\mailbox";
+            string baseDir = Path.GetDirectoryName(Assembly.GetEntryAssembly() != null ? Assembly.GetEntryAssembly().Location : AppDomain.CurrentDomain.BaseDirectory);
+            mailboxPath = Path.Combine(baseDir, "mailbox");
 
-            //init tree view
             _linkToMain.treeViewMails.DrawMode = TreeViewDrawMode.OwnerDrawText;
             _linkToMain.treeViewMails.DrawNode += new System.Windows.Forms.DrawTreeNodeEventHandler(this.treeView_DrawNode);
             _linkToMain.treeViewMails.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.nodeClicked);
@@ -83,26 +82,21 @@ namespace SMTPtestTool
 
             convertMessages();
 
-            //fileWatcher to check for filesystem changes in the mailbox folder
             FileSystemWatcher watcher = new FileSystemWatcher();
             watcher.Path = mailboxPath;
             watcher.NotifyFilter = NotifyFilters.LastWrite;
             watcher.Filter = "*";
             watcher.Changed += new FileSystemEventHandler(OnChanged);
             watcher.EnableRaisingEvents = true;
-            //watcher.Deleted += new FileSystemEventHandler(OnChanged);
-            //watcher.Renamed += new RenamedEventHandler(OnChanged);
 
             _linkToMain.txtMailView.TextChanged += new System.EventHandler(TextChanged);
 
         }
 
-
         public void triggerTreeViewRebuild()
         {
             buildMailTreeView(_linkToMain.treeViewMails, mailboxPath);
         }
-
 
         private void buildMailTreeView(TreeView treeView, string path)
         {
@@ -113,30 +107,25 @@ namespace SMTPtestTool
                 mnRemailFolderPaste.Enabled = false;
             }
 
-            //check which directory nodes are expanded before the rebuild
             Dictionary<String, Boolean> directoryNodes = new Dictionary<String, Boolean>();
             foreach (TreeNode currentNode in treeView.Nodes)
             {
                 directoryNodes.Add(currentNode.Tag.ToString(), currentNode.IsExpanded);
             }
 
-            //check if something was selected
-            //so that it can be selected after the rebuild
             String selectedNode = "";
             if (!(treeView.SelectedNode == null)) selectedNode = treeView.SelectedNode.Tag.ToString();
 
-            //clear nodes and rebuild the treeview with new items
             treeView.Nodes.Clear();
             treeView.ImageList = RemailTab.ImageList;
             var rootDirectory = new DirectoryInfo(path);
             foreach (var directory in rootDirectory.GetDirectories())
             {
-                //var childDirectoryNode = new TreeNode(directory.Name) { Tag = "directory" };
+
                 var childDirectoryNode = new TreeNode(directory.Name) { Tag = directory.FullName };
                 childDirectoryNode.ImageKey = "folder";
                 childDirectoryNode.SelectedImageKey = "folder";
                 String currentPath = directory.FullName;
-                //Debug.WriteLine("Directory: " + currentPath);
 
                 foreach (var file in Directory.GetFiles(currentPath, "*.eml", SearchOption.AllDirectories))
                 {
@@ -153,25 +142,19 @@ namespace SMTPtestTool
                         MessageBox.Show(excpection.Message, "Attachment I/O Error", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
 
-                   
                 }
                 treeView.Nodes.Add(childDirectoryNode);
             }
 
-            //iterate over all nodes to check if the previously selected node still exists
-            //if yes, select it
-            //and expand a directory node in case it was selected before the rebuild
             foreach (TreeNode currentNode in treeView.Nodes)
             {
                 if (currentNode.Tag.ToString().Equals(selectedNode))
                 {
                     treeView.SelectedNode = currentNode;
-                    // break;
+
                 }
                 if (directoryNodes.ContainsKey(currentNode.Tag.ToString()))
                 {
-                    //Debug.WriteLine("Key: " + currentNode.Tag.ToString());
-                    //Debug.WriteLine("Value: " + directoryNodes[currentNode.Tag.ToString()]);
 
                     if (directoryNodes[currentNode.Tag.ToString()])
                     {
@@ -197,15 +180,19 @@ namespace SMTPtestTool
                 StreamReader streamReader = new StreamReader(mailPath, Encoding.UTF8);
 
                 String text = streamReader.ReadToEnd();
+                currentRawMime = text;
                 _linkToMain.Invoke((MethodInvoker)delegate ()
                 {
-                    //EMLReader myReader = new EMLReader(text);
-                    //Debug.WriteLine(myReader.Body);
-                    
-                    _linkToMain.txtMailView.Text = text;
+                    if (_linkToMain.chkFormatTemplateView.Checked)
+                    {
+                        _linkToMain.txtMailView.Text = FormatMimeOrHtmlForDisplay(text);
+                    }
+                    else
+                    {
+                        _linkToMain.txtMailView.Text = text;
+                    }
                     txtMailViewCanBeDirty = true;
                     _linkToMain.txtMailView.ReadOnly = false;
-
                 });
 
                 streamReader.Close();
@@ -231,46 +218,9 @@ namespace SMTPtestTool
         private void convertMessages()
         {
             createDirectories();
-            var rootDirectory = new DirectoryInfo(mailboxPath);
-            foreach (var directory in rootDirectory.GetDirectories())
-            {
-                String currentPath = directory.FullName;
-
-                foreach (var file in Directory.GetFiles(currentPath, "*.qa", SearchOption.AllDirectories))
-                {
-                    // Debug.WriteLine("QA PATH: " + file);
-
-                    // Save the qa file as an eml file
-                    Core.QAReader reader = new Core.QAReader(new Core.BaseFile(file));
-
-                    try {
-                        reader.SaveRawMessageWithJemdHeader(Path.GetDirectoryName(file) + "\\" + Path.GetFileNameWithoutExtension(file) + ".eml");
-                        Debug.WriteLine("OUTPUT FILE: " + Path.GetDirectoryName(file) + "\\" + Path.GetFileNameWithoutExtension(file) + ".eml");
-                    }
-                    catch (Exception excpection)
-                    {
-                        MessageBox.Show(excpection.Message, "Attachment I/O Error", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                                       
-
-                    try
-                    {
-                        File.Delete(file);
-                    }
-                    catch (Exception)
-                    {
-
-                    }
-
-                }
-            }
         }
 
         #region actions
-        /// 
-        /// ACTIONS
-        /// 
-        ///
 
         private void renameFile(String pathToFolder)
         {
@@ -302,7 +252,6 @@ namespace SMTPtestTool
         private void TextChanged(object Sender, EventArgs e)
         {
 
-            //  Debug.WriteLine("TEXT CHANGED");
             if (txtMailViewCanBeDirty)
             {
                 if (txtMailViewIsDirty)
@@ -418,7 +367,6 @@ namespace SMTPtestTool
 
                 triggerTreeViewRebuild();
 
-                //select the pasted mail
                 foreach (TreeNode currentNode in _linkToMain.treeViewMails.Nodes)
                 {
                     if (currentNode.Tag.ToString().Equals(finalTargetPath))
@@ -446,10 +394,7 @@ namespace SMTPtestTool
         #endregion
 
         #region mouseClicks
-        /// 
-        /// MOUSE CLICKS
-        /// 
-        ///
+
         private void nodeClicked(object sender, TreeNodeMouseClickEventArgs e)
         {
             try
@@ -462,25 +407,21 @@ namespace SMTPtestTool
                 _linkToMain.btnRemailSaveMail.Enabled = false;
                 _linkToMain.lblRemailSize.Text = "";
 
-                //Debug.WriteLine("Item clicked: " + e.Node.Tag);
-                // get the file attributes for file or directory
                 FileAttributes attr = File.GetAttributes(@"" + e.Node.Tag);
 
                 if (e.Button == MouseButtons.Right)
                 {
-                    // Point where the mouse is clicked.
+
                     Point p = new Point(e.X, e.Y);
 
-                    // Get the node that the user has clicked.
                     TreeNode node = _linkToMain.treeViewMails.GetNodeAt(p);
-                    //Debug.WriteLine("selected NODE: " + node.Tag);
+
                     if (node != null)
                     {
-                        // Select the node the user has clicked.
+
                         _linkToMain.treeViewMails.SelectedNode = node;
                         mnRemailFile.Show(_linkToMain.treeViewMails, p);
 
-                        // Find the appropriate ContextMenu depending on the selected node.
                         if (attr.HasFlag(FileAttributes.Directory))
                         {
                             mnRemailFolder.Show(_linkToMain.treeViewMails, p);
@@ -492,22 +433,19 @@ namespace SMTPtestTool
                     }
                 }
 
-                //detect whether its a directory or file
                 if (attr.HasFlag(FileAttributes.Directory))
                 {
-                    //directory
+
                     _linkToMain.txtMailView.Text = "Click Remail to send all messages in the selected folder.";
 
                     _linkToMain.btnRemail.Enabled = true;
                 }
                 else
                 {
-                    //file  
+
                     this.mailPath = e.Node.Tag.ToString();
                     long lengthInKB = new System.IO.FileInfo(this.mailPath).Length / 100 / 8;
 
-                    //check file size
-                    //Debug.WriteLine("File Size: " + lengthInKB + " KB");
                     if (lengthInKB < 20000)
                     {
                         Thread LoadThread = new Thread(new ThreadStart(readFileAsync));
@@ -639,20 +577,13 @@ namespace SMTPtestTool
 
             }
 
-            //e.Handled = true;
             e.SuppressKeyPress = true;
 
-            //Debug.WriteLine("KEYDATA: " + e.KeyData);
-            //Debug.WriteLine("KeyCode: " + e.KeyCode);
-            //Debug.WriteLine("Keyvalue: " + e.KeyValue);            
         }
         #endregion
 
         #region Buttons
-        /// 
-        /// BUTTONS
-        /// 
-        ///
+
         public void btnOpenMailClicked()
         {
             openFile(_linkToMain.treeViewMails.SelectedNode.Tag.ToString());
@@ -668,10 +599,9 @@ namespace SMTPtestTool
             FileAttributes attr = File.GetAttributes(@"" + _linkToMain.treeViewMails.SelectedNode.Tag);
             if (attr.HasFlag(FileAttributes.Directory))
             {
-                //directory
+
                 _linkToMain.txtMailView.Text = "Click Remail to send all messages in the selected folder.";
 
-                //check if there any subnodes/mails in the selected folder
                 if (_linkToMain.treeViewMails.SelectedNode.Nodes.Count > 0)
                 {
                     _linkToMain.btnRemail.Enabled = true;
@@ -695,7 +625,7 @@ namespace SMTPtestTool
                         myRemailer = new Remailer(_linkToMain);
                         myRemailer.sendSingle = false;
                         myRemailer.fullMailBody = text;
-                        //myRemailer.mailPath = _linkToMain.treeViewMails.SelectedNode.Tag.ToString();
+
                         myRemailer.connect();
                     }
                 }
@@ -706,7 +636,7 @@ namespace SMTPtestTool
 
             }
             else
-            //file
+
             {
                 String mailPath = _linkToMain.treeViewMails.SelectedNode.Tag.ToString();
                 myRemailer = new Remailer(_linkToMain);
@@ -730,9 +660,116 @@ namespace SMTPtestTool
 
         public void btnSaveClicked()
         {
-            File.WriteAllText(_linkToMain.treeViewMails.SelectedNode.Tag.ToString(), _linkToMain.txtMailView.Text);
-            _linkToMain.btnRemailSaveMail.Enabled = false;
-            txtMailViewIsDirty = false;
+            if (_linkToMain.treeViewMails.SelectedNode != null && _linkToMain.treeViewMails.SelectedNode.Tag != null)
+            {
+                string targetFile = _linkToMain.treeViewMails.SelectedNode.Tag.ToString();
+                File.WriteAllText(targetFile, _linkToMain.txtMailView.Text, Encoding.UTF8);
+                currentRawMime = _linkToMain.txtMailView.Text;
+                _linkToMain.btnRemailSaveMail.Enabled = false;
+                txtMailViewIsDirty = false;
+            }
+        }
+
+        public void ToggleTemplateFormatting(bool cleanView)
+        {
+            if (string.IsNullOrEmpty(currentRawMime)) return;
+
+            if (cleanView)
+            {
+                _linkToMain.txtMailView.Text = FormatMimeOrHtmlForDisplay(currentRawMime);
+            }
+            else
+            {
+                _linkToMain.txtMailView.Text = currentRawMime;
+            }
+        }
+
+        public static string FormatMimeOrHtmlForDisplay(string rawContent)
+        {
+            if (string.IsNullOrWhiteSpace(rawContent)) return "";
+
+            string subject = "";
+            string from = "";
+            string to = "";
+            string date = "";
+            string body = "";
+
+            using (StringReader reader = new StringReader(rawContent))
+            {
+                string line;
+                bool readingHeaders = true;
+                StringBuilder bodySb = new StringBuilder();
+
+                while ((line = reader.ReadLine()) != null)
+                {
+                    if (readingHeaders)
+                    {
+                        if (string.IsNullOrWhiteSpace(line))
+                        {
+                            readingHeaders = false;
+                            continue;
+                        }
+
+                        if (line.StartsWith("Subject:", StringComparison.OrdinalIgnoreCase))
+                            subject = line.Substring(8).Trim();
+                        else if (line.StartsWith("From:", StringComparison.OrdinalIgnoreCase))
+                            from = line.Substring(5).Trim();
+                        else if (line.StartsWith("To:", StringComparison.OrdinalIgnoreCase))
+                            to = line.Substring(3).Trim();
+                        else if (line.StartsWith("Date:", StringComparison.OrdinalIgnoreCase))
+                            date = line.Substring(5).Trim();
+                    }
+                    else
+                    {
+                        bodySb.AppendLine(line);
+                    }
+                }
+
+                body = bodySb.ToString();
+            }
+
+            if (string.IsNullOrEmpty(subject) && string.IsNullOrEmpty(from) && string.IsNullOrEmpty(to) && string.IsNullOrEmpty(date))
+            {
+                body = rawContent;
+            }
+
+            string cleanBody = StripAndFormatHtml(body);
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("======================================================================");
+            if (!string.IsNullOrEmpty(subject)) sb.AppendLine($"  SUBJECT : {subject}");
+            if (!string.IsNullOrEmpty(from))    sb.AppendLine($"  FROM    : {from}");
+            if (!string.IsNullOrEmpty(to))      sb.AppendLine($"  TO      : {to}");
+            if (!string.IsNullOrEmpty(date))    sb.AppendLine($"  DATE    : {date}");
+            sb.AppendLine("======================================================================");
+            sb.AppendLine();
+            sb.AppendLine(cleanBody.Trim());
+
+            return sb.ToString();
+        }
+
+        public static string StripAndFormatHtml(string html)
+        {
+            if (string.IsNullOrEmpty(html)) return "";
+
+            string text = System.Text.RegularExpressions.Regex.Replace(html, @"<(script|style)[^>]*>[\s\S]*?</\1>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"<(br|p|div|h[1-6]|li|tr)[^>]*>", "\r\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"<hr[^>]*>", "\r\n----------------------------------------------------------------------\r\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"<a\s+[^>]*href=[""'](?<url>[^""']+)[""'][^>]*>(?<text>[\s\S]*?)</a>", m =>
+            {
+                string linkText = System.Text.RegularExpressions.Regex.Replace(m.Groups["text"].Value, @"<[^>]+>", "").Trim();
+                string url = m.Groups["url"].Value.Trim();
+                if (string.IsNullOrEmpty(linkText) || linkText.Equals(url, StringComparison.OrdinalIgnoreCase))
+                    return url;
+                return $"[{linkText}] ({url})";
+            }, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"<[^>]+>", "");
+            text = System.Net.WebUtility.HtmlDecode(text);
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"(\r?\n){3,}", "\r\n\r\n");
+
+            return text.Trim();
         }
 
         internal void btnOpenFolderClicked()
@@ -756,32 +793,30 @@ namespace SMTPtestTool
 
         public void createDirectories()
         {
-            //create all important mail directories in case they are not here
-            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "\\mailbox");
-            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "\\mailbox\\Import");
-            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "\\mailbox\\Inbox");
-            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "\\mailbox\\Outbox");
+            string baseDir = Path.GetDirectoryName(Assembly.GetEntryAssembly() != null ? Assembly.GetEntryAssembly().Location : AppDomain.CurrentDomain.BaseDirectory);
+            System.IO.Directory.CreateDirectory(Path.Combine(baseDir, "mailbox"));
+            System.IO.Directory.CreateDirectory(Path.Combine(baseDir, "mailbox", "Import"));
+            System.IO.Directory.CreateDirectory(Path.Combine(baseDir, "mailbox", "Inbox"));
+            System.IO.Directory.CreateDirectory(Path.Combine(baseDir, "mailbox", "Outbox"));
         }
 
-        //Determines a text file's encoding by analyzing its byte order mark (BOM).
         public static Encoding GetEncoding(string filename)
         {
-            // Read the BOM
+
             var bom = new byte[4];
             using (var file = new FileStream(filename, FileMode.Open, FileAccess.Read))
             {
                 file.Read(bom, 0, 4);
             }
-            // Analyze the BOM
+
             if (bom[0] == 0x2b && bom[1] == 0x2f && bom[2] == 0x76) return Encoding.UTF7;
             if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) return Encoding.UTF8;
-            if (bom[0] == 0xff && bom[1] == 0xfe) return Encoding.Unicode; //UTF-16LE
-            if (bom[0] == 0xfe && bom[1] == 0xff) return Encoding.BigEndianUnicode; //UTF-16BE
+            if (bom[0] == 0xff && bom[1] == 0xfe) return Encoding.Unicode;
+            if (bom[0] == 0xfe && bom[1] == 0xff) return Encoding.BigEndianUnicode;
             if (bom[0] == 0 && bom[1] == 0 && bom[2] == 0xfe && bom[3] == 0xff) return Encoding.UTF32;
             return Encoding.ASCII;
         }
 
-        //init image list for treeView Icons
         public static ImageList ImageList
         {
             get
@@ -799,19 +834,14 @@ namespace SMTPtestTool
             }
         }
 
-        //keep the selected treeView item nicely selected even if treeView looses focus
         private void treeView_DrawNode(object sender, DrawTreeNodeEventArgs e)
         {
-            //return;
+
             if (e.Node == null) return;
 
-            // if treeview's HideSelection property is "True", 
-            // this will always returns "False" on unfocused treeview
             var selected = (e.State & TreeNodeStates.Selected) == TreeNodeStates.Selected;
             var unfocused = !e.Node.TreeView.Focused;
 
-            // we need to do owner drawing only on a selected node
-            // and when the treeview is unfocused, else let the OS do it for us
             if (selected && unfocused)
             {
                 Debug.WriteLine("TREE VIEW DRAW NOTE TRIGGERED");
@@ -824,10 +854,8 @@ namespace SMTPtestTool
                 e.DrawDefault = true;
             }
 
-
         }
         #endregion
-
 
     }
 }
