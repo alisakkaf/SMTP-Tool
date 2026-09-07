@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <upgrades>
-  <currentVersion version="1.1" author="AliSakkaF" comment="Official Release v1.0 with modern TLS and SMTP diagnostics" releaseDate="06/09/2026" updateURL="https://github.com/alisakkaf/SMTP-Tool" oldVerionsComment="available."/>
+  <currentVersion version="1.0" author="AliSakkaF" comment="Official Release v1.0 with modern TLS and SMTP diagnostics" releaseDate="06/09/2026" updateURL="https://github.com/alisakkaf/SMTP-Tool" oldVerionsComment="available."/>
   <oldVersions>
   </oldVersions>
 </upgrades>
