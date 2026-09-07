@@ -13,6 +13,7 @@ namespace SMTPtool.Forms
         public MessageDetailsForm(DeliveryHistoryItem historyItem)
         {
             InitializeComponent();
+            try { this.Icon = Properties.Resources.mailIcon; } catch { }
             this.item = historyItem;
             PopulateData();
         }
