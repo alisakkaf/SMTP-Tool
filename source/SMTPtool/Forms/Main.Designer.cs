@@ -80,6 +80,8 @@ namespace SMTPtool
             this.nrcThreadCount = new System.Windows.Forms.NumericUpDown();
             this.btnSend = new System.Windows.Forms.Button();
             this.btnStopSend = new System.Windows.Forms.Button();
+            this.btnLogMaximizePreview = new System.Windows.Forms.Button();
+            this.btnLogReset = new System.Windows.Forms.Button();
             this.btnClear = new System.Windows.Forms.Button();
             this.chkShowFullLog = new System.Windows.Forms.CheckBox();
             this.txtLog = new System.Windows.Forms.RichTextBox();
@@ -96,6 +98,10 @@ namespace SMTPtool
             this.colMessage = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.btnInspectHistory = new System.Windows.Forms.Button();
             this.btnExportHistory = new System.Windows.Forms.Button();
+            this.btnRefreshHistory = new System.Windows.Forms.Button();
+            this.lblTrackingHost = new System.Windows.Forms.Label();
+            this.txtTrackingHost = new System.Windows.Forms.TextBox();
+            this.btnDetectPublicIp = new System.Windows.Forms.Button();
             this.btnClearHistory = new System.Windows.Forms.Button();
             this.RemailTabPage = new System.Windows.Forms.TabPage();
             this.groupBox4 = new System.Windows.Forms.GroupBox();
@@ -108,6 +114,8 @@ namespace SMTPtool
             this.label4 = new System.Windows.Forms.Label();
             this.cbxRemailTo = new System.Windows.Forms.ComboBox();
             this.btnRemail = new System.Windows.Forms.Button();
+            this.btnStopRemail = new System.Windows.Forms.Button();
+            this.btnSyncRemail = new System.Windows.Forms.Button();
             this.btnOpenFolder = new System.Windows.Forms.Button();
             this.groupBox5 = new System.Windows.Forms.GroupBox();
             this.treeViewMails = new System.Windows.Forms.TreeView();
@@ -123,6 +131,8 @@ namespace SMTPtool
             this.label6 = new System.Windows.Forms.Label();
             this.cbxSessionPort = new System.Windows.Forms.TextBox();
             this.btnSessionConnect = new System.Windows.Forms.Button();
+            this.btnSessionDisconnect = new System.Windows.Forms.Button();
+            this.btnSessionSync = new System.Windows.Forms.Button();
             this.btnSessionOpenNewWindow = new System.Windows.Forms.Button();
             this.groupBox7 = new System.Windows.Forms.GroupBox();
             this.btnSessionHelo = new System.Windows.Forms.Button();
@@ -870,6 +880,8 @@ namespace SMTPtool
             this.groupBox3.Controls.Add(this.nrcThreadCount);
             this.groupBox3.Controls.Add(this.btnSend);
             this.groupBox3.Controls.Add(this.btnStopSend);
+            this.groupBox3.Controls.Add(this.btnLogMaximizePreview);
+            this.groupBox3.Controls.Add(this.btnLogReset);
             this.groupBox3.Controls.Add(this.chkShowFullLog);
             this.groupBox3.Controls.Add(this.btnClear);
             this.groupBox3.Controls.Add(this.txtLog);
@@ -971,6 +983,28 @@ namespace SMTPtool
             this.btnStopSend.UseVisualStyleBackColor = true;
             this.btnStopSend.Click += new System.EventHandler(this.btnStopSend_Click);
             // 
+            // btnLogMaximizePreview
+            // 
+            this.btnLogMaximizePreview.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.btnLogMaximizePreview.Location = new System.Drawing.Point(520, 17);
+            this.btnLogMaximizePreview.Name = "btnLogMaximizePreview";
+            this.btnLogMaximizePreview.Size = new System.Drawing.Size(100, 29);
+            this.btnLogMaximizePreview.TabIndex = 6;
+            this.btnLogMaximizePreview.Text = "▲ Max Preview";
+            this.btnLogMaximizePreview.UseVisualStyleBackColor = true;
+            this.btnLogMaximizePreview.Click += new System.EventHandler(this.btnLogMaximizePreview_Click);
+            // 
+            // btnLogReset
+            // 
+            this.btnLogReset.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.btnLogReset.Location = new System.Drawing.Point(625, 17);
+            this.btnLogReset.Name = "btnLogReset";
+            this.btnLogReset.Size = new System.Drawing.Size(95, 29);
+            this.btnLogReset.TabIndex = 7;
+            this.btnLogReset.Text = "▼ Reset Log";
+            this.btnLogReset.UseVisualStyleBackColor = true;
+            this.btnLogReset.Click += new System.EventHandler(this.btnLogReset_Click);
+            // 
             // btnClear
             // 
             this.btnClear.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
@@ -1015,6 +1049,10 @@ namespace SMTPtool
             this.tabHistory.Controls.Add(this.lvHistory);
             this.tabHistory.Controls.Add(this.btnInspectHistory);
             this.tabHistory.Controls.Add(this.btnExportHistory);
+            this.tabHistory.Controls.Add(this.btnRefreshHistory);
+            this.tabHistory.Controls.Add(this.lblTrackingHost);
+            this.tabHistory.Controls.Add(this.txtTrackingHost);
+            this.tabHistory.Controls.Add(this.btnDetectPublicIp);
             this.tabHistory.Controls.Add(this.btnClearHistory);
             this.tabHistory.Location = new System.Drawing.Point(4, 30);
             this.tabHistory.Name = "tabHistory";
@@ -1120,6 +1158,51 @@ namespace SMTPtool
             this.btnExportHistory.UseVisualStyleBackColor = true;
             this.btnExportHistory.Click += new System.EventHandler(this.btnExportHistory_Click);
             // 
+            // btnRefreshHistory
+            // 
+            this.btnRefreshHistory.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.btnRefreshHistory.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnRefreshHistory.Location = new System.Drawing.Point(370, 615);
+            this.btnRefreshHistory.Name = "btnRefreshHistory";
+            this.btnRefreshHistory.Size = new System.Drawing.Size(140, 32);
+            this.btnRefreshHistory.TabIndex = 3;
+            this.btnRefreshHistory.Text = "🔄 Refresh Tracking";
+            this.btnRefreshHistory.UseVisualStyleBackColor = true;
+            this.btnRefreshHistory.Click += new System.EventHandler(this.btnRefreshHistory_Click);
+            // 
+            // lblTrackingHost
+            // 
+            this.lblTrackingHost.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.lblTrackingHost.AutoSize = true;
+            this.lblTrackingHost.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblTrackingHost.Location = new System.Drawing.Point(518, 622);
+            this.lblTrackingHost.Name = "lblTrackingHost";
+            this.lblTrackingHost.Size = new System.Drawing.Size(58, 15);
+            this.lblTrackingHost.TabIndex = 4;
+            this.lblTrackingHost.Text = "Host / IP:";
+            // 
+            // txtTrackingHost
+            // 
+            this.txtTrackingHost.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.txtTrackingHost.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.txtTrackingHost.Location = new System.Drawing.Point(580, 619);
+            this.txtTrackingHost.Name = "txtTrackingHost";
+            this.txtTrackingHost.Size = new System.Drawing.Size(140, 23);
+            this.txtTrackingHost.TabIndex = 5;
+            this.txtTrackingHost.TextChanged += new System.EventHandler(this.txtTrackingHost_TextChanged);
+            // 
+            // btnDetectPublicIp
+            // 
+            this.btnDetectPublicIp.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.btnDetectPublicIp.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.btnDetectPublicIp.Location = new System.Drawing.Point(725, 615);
+            this.btnDetectPublicIp.Name = "btnDetectPublicIp";
+            this.btnDetectPublicIp.Size = new System.Drawing.Size(85, 32);
+            this.btnDetectPublicIp.TabIndex = 6;
+            this.btnDetectPublicIp.Text = "Detect IP";
+            this.btnDetectPublicIp.UseVisualStyleBackColor = true;
+            this.btnDetectPublicIp.Click += new System.EventHandler(this.btnDetectPublicIp_Click);
+            // 
             // btnClearHistory
             // 
             this.btnClearHistory.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
@@ -1157,6 +1240,8 @@ namespace SMTPtool
             this.groupBox4.Controls.Add(this.label4);
             this.groupBox4.Controls.Add(this.cbxRemailTo);
             this.groupBox4.Controls.Add(this.btnRemail);
+            this.groupBox4.Controls.Add(this.btnStopRemail);
+            this.groupBox4.Controls.Add(this.btnSyncRemail);
             this.groupBox4.Controls.Add(this.btnOpenFolder);
             this.groupBox4.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.groupBox4.Location = new System.Drawing.Point(8, 8);
@@ -1245,23 +1330,47 @@ namespace SMTPtool
             // btnRemail
             // 
             this.btnRemail.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.btnRemail.Location = new System.Drawing.Point(540, 30);
+            this.btnRemail.Location = new System.Drawing.Point(535, 18);
             this.btnRemail.Name = "btnRemail";
-            this.btnRemail.Size = new System.Drawing.Size(160, 36);
+            this.btnRemail.Size = new System.Drawing.Size(145, 30);
             this.btnRemail.TabIndex = 8;
             this.btnRemail.Text = "Send Selected Email";
             this.btnRemail.UseVisualStyleBackColor = true;
             this.btnRemail.Click += new System.EventHandler(this.btnRemail_Click);
             // 
+            // btnStopRemail
+            // 
+            this.btnStopRemail.Enabled = false;
+            this.btnStopRemail.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnStopRemail.ForeColor = System.Drawing.Color.Crimson;
+            this.btnStopRemail.Location = new System.Drawing.Point(535, 52);
+            this.btnStopRemail.Name = "btnStopRemail";
+            this.btnStopRemail.Size = new System.Drawing.Size(145, 30);
+            this.btnStopRemail.TabIndex = 9;
+            this.btnStopRemail.Text = "Stop Sending";
+            this.btnStopRemail.UseVisualStyleBackColor = true;
+            this.btnStopRemail.Click += new System.EventHandler(this.btnStopRemail_Click);
+            // 
+            // btnSyncRemail
+            // 
+            this.btnSyncRemail.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.btnSyncRemail.Location = new System.Drawing.Point(688, 18);
+            this.btnSyncRemail.Name = "btnSyncRemail";
+            this.btnSyncRemail.Size = new System.Drawing.Size(145, 30);
+            this.btnSyncRemail.TabIndex = 10;
+            this.btnSyncRemail.Text = "🔄 Sync from Main";
+            this.btnSyncRemail.UseVisualStyleBackColor = true;
+            this.btnSyncRemail.Click += new System.EventHandler(this.btnSyncRemail_Click);
+            // 
             // btnOpenFolder
             // 
             this.btnOpenFolder.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.btnOpenFolder.Font = new System.Drawing.Font("Segoe UI", 8.5F);
-            this.btnOpenFolder.Location = new System.Drawing.Point(780, 30);
+            this.btnOpenFolder.Location = new System.Drawing.Point(838, 18);
             this.btnOpenFolder.Name = "btnOpenFolder";
-            this.btnOpenFolder.Size = new System.Drawing.Size(150, 36);
-            this.btnOpenFolder.TabIndex = 9;
-            this.btnOpenFolder.Text = "Open Mailbox Folder";
+            this.btnOpenFolder.Size = new System.Drawing.Size(95, 64);
+            this.btnOpenFolder.TabIndex = 11;
+            this.btnOpenFolder.Text = "Open Folder";
             this.btnOpenFolder.UseVisualStyleBackColor = true;
             this.btnOpenFolder.Click += new System.EventHandler(this.btnOpenFolder_Click);
             // 
@@ -1383,6 +1492,8 @@ namespace SMTPtool
             this.groupBox6.Controls.Add(this.label6);
             this.groupBox6.Controls.Add(this.cbxSessionPort);
             this.groupBox6.Controls.Add(this.btnSessionConnect);
+            this.groupBox6.Controls.Add(this.btnSessionDisconnect);
+            this.groupBox6.Controls.Add(this.btnSessionSync);
             this.groupBox6.Controls.Add(this.btnSessionOpenNewWindow);
             this.groupBox6.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.groupBox6.Location = new System.Drawing.Point(8, 8);
@@ -1435,11 +1546,35 @@ namespace SMTPtool
             this.btnSessionConnect.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnSessionConnect.Location = new System.Drawing.Point(400, 23);
             this.btnSessionConnect.Name = "btnSessionConnect";
-            this.btnSessionConnect.Size = new System.Drawing.Size(100, 27);
+            this.btnSessionConnect.Size = new System.Drawing.Size(85, 27);
             this.btnSessionConnect.TabIndex = 4;
             this.btnSessionConnect.Text = "Connect";
             this.btnSessionConnect.UseVisualStyleBackColor = true;
             this.btnSessionConnect.Click += new System.EventHandler(this.btnSessionConnect_Click);
+            // 
+            // btnSessionDisconnect
+            // 
+            this.btnSessionDisconnect.Enabled = false;
+            this.btnSessionDisconnect.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnSessionDisconnect.ForeColor = System.Drawing.Color.Crimson;
+            this.btnSessionDisconnect.Location = new System.Drawing.Point(490, 23);
+            this.btnSessionDisconnect.Name = "btnSessionDisconnect";
+            this.btnSessionDisconnect.Size = new System.Drawing.Size(110, 27);
+            this.btnSessionDisconnect.TabIndex = 5;
+            this.btnSessionDisconnect.Text = "Stop / Disconnect";
+            this.btnSessionDisconnect.UseVisualStyleBackColor = true;
+            this.btnSessionDisconnect.Click += new System.EventHandler(this.btnSessionDisconnect_Click);
+            // 
+            // btnSessionSync
+            // 
+            this.btnSessionSync.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.btnSessionSync.Location = new System.Drawing.Point(605, 23);
+            this.btnSessionSync.Name = "btnSessionSync";
+            this.btnSessionSync.Size = new System.Drawing.Size(120, 27);
+            this.btnSessionSync.TabIndex = 6;
+            this.btnSessionSync.Text = "🔄 Sync from Main";
+            this.btnSessionSync.UseVisualStyleBackColor = true;
+            this.btnSessionSync.Click += new System.EventHandler(this.btnSessionSync_Click);
             // 
             // btnSessionOpenNewWindow
             // 
@@ -1898,6 +2033,8 @@ namespace SMTPtool
         public System.Windows.Forms.Button btnSend;
         public System.Windows.Forms.Button btnStopSend;
         public System.Windows.Forms.Button btnClear;
+        public System.Windows.Forms.Button btnLogMaximizePreview;
+        public System.Windows.Forms.Button btnLogReset;
         public System.Windows.Forms.CheckBox chkShowFullLog;
         public System.Windows.Forms.RichTextBox txtLog;
         public System.Windows.Forms.TabPage tabHistory;
@@ -1913,6 +2050,10 @@ namespace SMTPtool
         public System.Windows.Forms.ColumnHeader colMessage;
         public System.Windows.Forms.Button btnInspectHistory;
         public System.Windows.Forms.Button btnExportHistory;
+        public System.Windows.Forms.Button btnRefreshHistory;
+        public System.Windows.Forms.Label lblTrackingHost;
+        public System.Windows.Forms.TextBox txtTrackingHost;
+        public System.Windows.Forms.Button btnDetectPublicIp;
         public System.Windows.Forms.Button btnClearHistory;
         public System.Windows.Forms.TabPage RemailTabPage;
         public System.Windows.Forms.GroupBox groupBox4;
@@ -1925,6 +2066,8 @@ namespace SMTPtool
         public System.Windows.Forms.Label label4;
         public System.Windows.Forms.ComboBox cbxRemailTo;
         public System.Windows.Forms.Button btnRemail;
+        public System.Windows.Forms.Button btnStopRemail;
+        public System.Windows.Forms.Button btnSyncRemail;
         public System.Windows.Forms.Button btnOpenFolder;
         public System.Windows.Forms.GroupBox groupBox5;
         public System.Windows.Forms.TreeView treeViewMails;
@@ -1940,6 +2083,8 @@ namespace SMTPtool
         public System.Windows.Forms.Label label6;
         public System.Windows.Forms.TextBox cbxSessionPort;
         public System.Windows.Forms.Button btnSessionConnect;
+        public System.Windows.Forms.Button btnSessionDisconnect;
+        public System.Windows.Forms.Button btnSessionSync;
         public System.Windows.Forms.Button btnSessionOpenNewWindow;
         public System.Windows.Forms.GroupBox groupBox7;
         public System.Windows.Forms.Button btnSessionHelo;
