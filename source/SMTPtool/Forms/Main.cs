@@ -7,6 +7,8 @@ using System.Linq;
 using System.Net.Mail;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using SMTPtool.Forms;
@@ -51,6 +53,7 @@ namespace SMTPtool
         public List<string> mailFromList = new List<string>();
         public List<string> mailToList = new List<string>();
         public List<DeliveryHistoryItem> historyList = new List<DeliveryHistoryItem>();
+        private System.Windows.Forms.Timer historyRefreshTimer;
 
         public Main()
         {
@@ -84,17 +87,56 @@ namespace SMTPtool
         {
             LoadDeliveryHistory();
             trackingServer.Start();
+
+            if (txtTrackingHost != null)
+            {
+                txtTrackingHost.Text = trackingServer.GetEffectiveHost();
+            }
+
+            historyRefreshTimer = new System.Windows.Forms.Timer();
+            historyRefreshTimer.Interval = 3000;
+            historyRefreshTimer.Tick += (s, ev) => RefreshHistoryList();
+            historyRefreshTimer.Start();
+
+            txtBody.TextChanged += txtBody_TextChanged;
+            smtpTabPage.SelectedIndexChanged += smtpTabPage_SelectedIndexChanged;
+
             mailTab.addLogMessage($"SMTP Tool v{CURRENT_VERSION} initialized successfully. Ready for diagnostics.", Color.LightSkyBlue);
             if (trackingServer.IsRunning)
             {
                 mailTab.addLogMessage($"[LIVE TRACKING] Tracking listener active on port {trackingServer.Port} (Host: {trackingServer.GetEffectiveHost()})", Color.SpringGreen);
             }
             mailTab.addLogMessage($"Author: {AUTHOR_NAME} | Website: {AUTHOR_WEBSITE} | GitHub: {GITHUB_REPO_URL}", Color.DarkGray);
+
+            ThreadPool.QueueUserWorkItem(async _ =>
+            {
+                try
+                {
+                    using (var wc = new System.Net.WebClient())
+                    {
+                        wc.Headers["User-Agent"] = "SMTP-Tool";
+                        string ip = await wc.DownloadStringTaskAsync("https://api.ipify.org");
+                        if (!string.IsNullOrWhiteSpace(ip) && !IsDisposed)
+                        {
+                            BeginInvoke((MethodInvoker)delegate
+                            {
+                                if (txtTrackingHost != null && (txtTrackingHost.Text == "127.0.0.1" || string.IsNullOrWhiteSpace(txtTrackingHost.Text)))
+                                {
+                                    txtTrackingHost.Text = ip.Trim();
+                                    if (trackingServer != null) trackingServer.CustomHost = ip.Trim();
+                                }
+                            });
+                        }
+                    }
+                }
+                catch { }
+            });
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
+            historyRefreshTimer?.Stop();
             trackingServer?.Stop();
             SaveDeliveryHistory();
         }
@@ -260,6 +302,61 @@ namespace SMTPtool
         private void chbShowPassword_CheckedChanged(object sender, EventArgs e)
         {
             txtPassword.UseSystemPasswordChar = !chbShowPassword.Checked;
+        }
+
+        private bool isUpdatingHtmlCheckbox = false;
+
+        private void txtBody_TextChanged(object sender, EventArgs e)
+        {
+            if (isUpdatingHtmlCheckbox) return;
+
+            bool detectedHtml = IsLikelyHtml(txtBody.Text);
+            if (chbIsHtml.Checked != detectedHtml)
+            {
+                isUpdatingHtmlCheckbox = true;
+                chbIsHtml.Checked = detectedHtml;
+                isUpdatingHtmlCheckbox = false;
+            }
+
+            if (chbIsHtml.Checked && tabBodyControl.SelectedTab == tabBodyPreview)
+            {
+                wbPreview.DocumentText = txtBody.Text;
+            }
+        }
+
+        private bool IsLikelyHtml(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string t = text.Trim();
+            if (t.StartsWith("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith("<html", StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith("<xml", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            int tagCount = 0;
+            string[] signatures = new[] {
+                "<div", "<p>", "<p ", "<table", "<tr", "<td", "<th", "<span", "<a href",
+                "<img ", "<br", "<hr", "<style", "<head", "<body", "<h1", "<h2", "<h3",
+                "</div>", "</p>", "</table>", "</span>", "</a>", "</body>", "</html>"
+            };
+
+            foreach (var sig in signatures)
+            {
+                if (t.IndexOf(sig, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    tagCount++;
+                    if (tagCount >= 2) return true;
+                }
+            }
+
+            if (Regex.IsMatch(t, @"<\s*([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>(.*?)<\s*/\s*\1\s*>", RegexOptions.Singleline))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private void chbIsHtml_CheckedChanged(object sender, EventArgs e)
@@ -801,6 +898,16 @@ namespace SMTPtool
             remailTab.btnOpenFolderClicked();
         }
 
+        private void btnStopRemail_Click(object sender, EventArgs e)
+        {
+            remailTab?.btnStopClicked();
+        }
+
+        private void btnSyncRemail_Click(object sender, EventArgs e)
+        {
+            remailTab?.syncFromMain();
+        }
+
         #endregion
 
         #region Interactive Session Handlers
@@ -816,6 +923,16 @@ namespace SMTPtool
                 sessionTab.connect();
                 sessionTab.isConnected = true;
             }
+        }
+
+        private void btnSessionDisconnect_Click(object sender, EventArgs e)
+        {
+            sessionTab?.disconnect();
+        }
+
+        private void btnSessionSync_Click(object sender, EventArgs e)
+        {
+            sessionTab?.syncFromMain();
         }
 
         private void btnSessionOpenNewWindow_Click(object sender, EventArgs e)
@@ -887,6 +1004,135 @@ namespace SMTPtool
 
         #endregion
 
+        #region Log Panel Sizing & Tracking Handlers
+
+        private void btnLogMaximizePreview_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                int targetTop = mailTabPage.ClientSize.Height - 55;
+                if (targetTop > 320)
+                {
+                    groupBox3.Top = targetTop;
+                    groupBox3.Height = 50;
+                    groupBoxBody.Height = groupBox3.Top - groupBoxBody.Top - 6;
+                }
+            }
+            catch { }
+        }
+
+        private void btnLogReset_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                groupBoxBody.Height = 200;
+                groupBox3.Top = 486;
+                groupBox3.Height = Math.Max(120, mailTabPage.ClientSize.Height - 492);
+            }
+            catch { }
+        }
+
+        private void txtTrackingHost_TextChanged(object sender, EventArgs e)
+        {
+            if (trackingServer != null)
+            {
+                trackingServer.CustomHost = txtTrackingHost.Text.Trim();
+            }
+        }
+
+        private async void btnDetectPublicIp_Click(object sender, EventArgs e)
+        {
+            btnDetectPublicIp.Enabled = false;
+            btnDetectPublicIp.Text = "...";
+            try
+            {
+                using (var wc = new System.Net.WebClient())
+                {
+                    wc.Headers["User-Agent"] = "SMTP-Tool";
+                    string ip = await wc.DownloadStringTaskAsync("https://api.ipify.org");
+                    if (!string.IsNullOrWhiteSpace(ip))
+                    {
+                        txtTrackingHost.Text = ip.Trim();
+                        if (trackingServer != null) trackingServer.CustomHost = ip.Trim();
+                    }
+                }
+            }
+            catch
+            {
+                try
+                {
+                    string localIp = TrackingServer.GetLocalIpAddress();
+                    txtTrackingHost.Text = localIp;
+                }
+                catch { }
+            }
+            finally
+            {
+                btnDetectPublicIp.Enabled = true;
+                btnDetectPublicIp.Text = "Detect IP";
+            }
+        }
+
+        private void btnRefreshHistory_Click(object sender, EventArgs e)
+        {
+            RefreshHistoryList();
+            MessageBox.Show("Delivery and engagement tracking statuses updated.", "Tracking Refreshed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        public void RefreshHistoryList()
+        {
+            try
+            {
+                if (lvHistory.IsDisposed || !lvHistory.IsHandleCreated) return;
+                lvHistory.BeginInvoke((MethodInvoker)delegate
+                {
+                    foreach (ListViewItem lvi in lvHistory.Items)
+                    {
+                        if (lvi.Tag is DeliveryHistoryItem item)
+                        {
+                            if (lvi.SubItems.Count > 7)
+                            {
+                                lvi.SubItems[7].Text = item.TrackingSummary;
+                            }
+                            if (item.IsClicked)
+                                lvi.ForeColor = Color.DeepSkyBlue;
+                            else if (item.IsOpened)
+                                lvi.ForeColor = Color.LimeGreen;
+                            else if (item.Success)
+                                lvi.ForeColor = Color.ForestGreen;
+                            else
+                                lvi.ForeColor = Color.Crimson;
+                        }
+                    }
+                });
+            }
+            catch { }
+        }
+
+        private void smtpTabPage_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (smtpTabPage.SelectedTab == RemailTabPage)
+            {
+                if (string.IsNullOrWhiteSpace(cbxRemailIP.Text) || cbxRemailIP.Text == "192.168.0.1")
+                {
+                    remailTab?.syncFromMain();
+                }
+            }
+            else if (smtpTabPage.SelectedTab == tabPage1)
+            {
+                if (string.IsNullOrWhiteSpace(cbxSessionServer.Text) || cbxSessionServer.Text == "192.168.0.1")
+                {
+                    sessionTab?.syncFromMain();
+                }
+            }
+            else if (smtpTabPage.SelectedTab == tabHistory)
+            {
+                RefreshHistoryList();
+            }
+        }
+
+        #endregion
+
         #region Status Strip & Updates
 
         private async Task PerformUpdateCheckAsync()
@@ -900,6 +1146,18 @@ namespace SMTPtool
                     statusLabel.ForeColor = Color.Crimson;
                     btnCheckUpdates.Text = $"[ Download {update.LatestVersion} ]";
                     btnCheckUpdates.ForeColor = Color.Crimson;
+
+                    if (!UpdateChecker.IsVersionSkipped(update.LatestVersion))
+                    {
+                        using (var form = new UpdateNotificationForm(update))
+                        {
+                            form.ShowDialog(this);
+                            if (form.ResultAction == UpdateAction.Skip)
+                            {
+                                UpdateChecker.SetVersionSkipped(update.LatestVersion);
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -917,16 +1175,20 @@ namespace SMTPtool
             var update = await UpdateChecker.CheckForUpdatesAsync();
             if (update.IsNewVersionAvailable)
             {
-                if (MessageBox.Show($"A new version ({update.LatestVersion}) of SMTP Tool is available on GitHub!\n\nCurrent Version: v{CURRENT_VERSION}\nLatest Version: {update.LatestVersion}\n\nWould you like to open GitHub releases to download it?", "Update Available", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                using (var form = new UpdateNotificationForm(update))
                 {
-                    Process.Start(update.ReleaseUrl);
+                    form.ShowDialog(this);
+                    if (form.ResultAction == UpdateAction.Skip)
+                    {
+                        UpdateChecker.SetVersionSkipped(update.LatestVersion);
+                    }
                 }
             }
             else
             {
                 MessageBox.Show($"You are using the latest version of SMTP Tool (v{CURRENT_VERSION}).", "Up To Date", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            btnCheckUpdates.Text = "[ Check For Updates ]";
+            btnCheckUpdates.Text = update.IsNewVersionAvailable ? $"[ Download {update.LatestVersion} ]" : "[ Check For Updates ]";
         }
 
         private void statusLabelMail_Click(object sender, EventArgs e)
