@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -32,6 +32,7 @@ namespace SMTPtool
         public Telnet()
         {
             InitializeComponent();
+            try { this.Icon = Properties.Resources.mailIcon; } catch { }
         }
 
         public void connect()
