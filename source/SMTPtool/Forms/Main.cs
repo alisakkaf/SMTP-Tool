@@ -19,7 +19,20 @@ namespace SMTPtool
 {
     public partial class Main : Form
     {
-        public static string CURRENT_VERSION = "1.0";
+        private static string _currentVersion;
+        public static string CURRENT_VERSION
+        {
+            get
+            {
+                if (_currentVersion == null)
+                {
+                    var v = Assembly.GetExecutingAssembly().GetName().Version;
+                    _currentVersion = $"{v.Major}.{v.Minor}";
+                }
+                return _currentVersion;
+            }
+        }
+
         public const string AUTHOR_NAME = "AliSakkaF";
         public const string AUTHOR_WEBSITE = "https://alisakkaf.com";
         public const string AUTHOR_FACEBOOK = "https://www.facebook.com/AliSakkaf.Dev";
@@ -43,7 +56,8 @@ namespace SMTPtool
         {
             InitializeComponent();
 
-            this.Text = "SMTP Tool - Professional Email Testing Suite (v1.0) | AliSakkaF";
+            try { this.Icon = Properties.Resources.mailIcon; } catch { }
+            this.Text = $"SMTP Tool - Professional Email Testing Suite (v{CURRENT_VERSION}) | AliSakkaF";
 
             profileManager = new ProfileManager();
             trackingServer = new TrackingServer();
@@ -273,6 +287,11 @@ namespace SMTPtool
             mailTab.btnSendClicked();
         }
 
+        private void btnStopSend_Click(object sender, EventArgs e)
+        {
+            mailTab.StopSending();
+        }
+
         private void btnClear_Click(object sender, EventArgs e)
         {
             txtLog.Clear();
@@ -362,10 +381,11 @@ namespace SMTPtool
             }
 
             mailTab.numberOfMessagesSent++;
-            if (mailTab.numberOfMessagesSent >= mailTab.numberOfMessagesToSend)
+            if (mailTab.numberOfMessagesSent >= mailTab.numberOfMessagesToSend || SMTPsender.CancellationRequested)
             {
                 btnPing.Enabled = true;
                 btnSend.Enabled = true;
+                btnStopSend.Enabled = false;
                 btnSend.Text = "Send Test Email";
                 if (mailTab.mySendTimer != null) mailTab.mySendTimer.Enabled = false;
             }
@@ -876,9 +896,9 @@ namespace SMTPtool
             {
                 if (update.IsNewVersionAvailable)
                 {
-                    statusLabel.Text = $"Update Available: v{update.LatestVersion}!";
+                    statusLabel.Text = $"Update Available: {update.LatestVersion}!";
                     statusLabel.ForeColor = Color.Crimson;
-                    btnCheckUpdates.Text = "[ Download v" + update.LatestVersion + " ]";
+                    btnCheckUpdates.Text = $"[ Download {update.LatestVersion} ]";
                     btnCheckUpdates.ForeColor = Color.Crimson;
                 }
                 else
@@ -886,6 +906,7 @@ namespace SMTPtool
                     statusLabel.Text = $"SMTP Tool v{CURRENT_VERSION} | Up To Date";
                     statusLabel.ForeColor = Color.ForestGreen;
                     btnCheckUpdates.Text = "[ Check For Updates ]";
+                    btnCheckUpdates.ForeColor = Color.ForestGreen;
                 }
             });
         }
@@ -896,7 +917,7 @@ namespace SMTPtool
             var update = await UpdateChecker.CheckForUpdatesAsync();
             if (update.IsNewVersionAvailable)
             {
-                if (MessageBox.Show($"A new version (v{update.LatestVersion}) of SMTP Tool is available!\n\nWould you like to open GitHub releases to download it?", "Update Available", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                if (MessageBox.Show($"A new version ({update.LatestVersion}) of SMTP Tool is available on GitHub!\n\nCurrent Version: v{CURRENT_VERSION}\nLatest Version: {update.LatestVersion}\n\nWould you like to open GitHub releases to download it?", "Update Available", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 {
                     Process.Start(update.ReleaseUrl);
                 }
