@@ -8,6 +8,7 @@
   <strong>High-Performance SMTP Testing, Server Diagnostics & Email Debugging Suite for Windows</strong>
 </p>
 
+
 <p align="center">
   <a href="https://github.com/alisakkaf/SMTP-Tool/releases"><img src="https://img.shields.io/github/v/release/alisakkaf/SMTP-Tool?style=for-the-badge&color=2563eb&logo=github&label=Release" alt="Latest Release"></a>
   <a href="https://github.com/alisakkaf/SMTP-Tool/releases"><img src="https://img.shields.io/github/downloads/alisakkaf/SMTP-Tool/total.svg?style=for-the-badge&color=10b981&logo=github&label=Downloads" alt="Downloads"></a>
