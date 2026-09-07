@@ -75,6 +75,12 @@ Whether verifying outbound mail connectivity on local development environments, 
   <img src="image/interactive-terminal.png" alt="Interactive Telnet SMTP Terminal & Protocol Console" width="100%">
 </p>
 
+### 4. Rendered HTML Email Preview in Gmail Inbox Delivered by SMTP Tool
+<p align="center">
+  <img src="image/Email_Perview_inGmail_ByHTML.png" alt="Rendered HTML Email Preview in Gmail Inbox Delivered by SMTP Tool" width="100%">
+</p>
+
+
 </details>
 
 ---
@@ -102,7 +108,7 @@ SMTP Tool is built for universal backward and forward compatibility across Micro
 
 | Windows Version | Architecture | Compatibility Status | Notes |
 | :-------------- | :----------: | :------------------: | :---- |
-| **Windows 11** (21H2 – 24H2) | x64 / ARM64 | 🟢 **Fully Supported** | Native look, high-DPI scaling verified |
+| **Windows 11** (All builds up to Version 26H1, OS Build 28020.2731) | x64 / ARM64 | 🟢 **Fully Supported** | Native look, high-DPI scaling verified, latest insider/canary tested |
 | **Windows 10** (All Editions) | x86 / x64 | 🟢 **Fully Supported** | Standard enterprise benchmark |
 | **Windows 8.1 / 8** | x86 / x64 | 🟢 **Fully Supported** | Tested & verified |
 | **Windows 7 SP1** | x86 / x64 | 🟢 **Fully Supported** | Requires .NET Framework 4.8 runtime |
