@@ -110,5 +110,30 @@ namespace SMTPtool.Services
                 return false;
             }
         }
+
+        public static bool IsVersionSkipped(string version)
+        {
+            try
+            {
+                string skipFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".skipped_update");
+                if (File.Exists(skipFile))
+                {
+                    string skipped = File.ReadAllText(skipFile).Trim();
+                    return string.Equals(skipped, version?.Trim(), StringComparison.OrdinalIgnoreCase);
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        public static void SetVersionSkipped(string version)
+        {
+            try
+            {
+                string skipFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".skipped_update");
+                File.WriteAllText(skipFile, version?.Trim() ?? "");
+            }
+            catch { }
+        }
     }
 }
