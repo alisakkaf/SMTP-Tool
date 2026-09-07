@@ -79,6 +79,7 @@ namespace SMTPtool
             this.lblThreadCount = new System.Windows.Forms.Label();
             this.nrcThreadCount = new System.Windows.Forms.NumericUpDown();
             this.btnSend = new System.Windows.Forms.Button();
+            this.btnStopSend = new System.Windows.Forms.Button();
             this.btnClear = new System.Windows.Forms.Button();
             this.chkShowFullLog = new System.Windows.Forms.CheckBox();
             this.txtLog = new System.Windows.Forms.RichTextBox();
@@ -868,6 +869,7 @@ namespace SMTPtool
             this.groupBox3.Controls.Add(this.lblThreadCount);
             this.groupBox3.Controls.Add(this.nrcThreadCount);
             this.groupBox3.Controls.Add(this.btnSend);
+            this.groupBox3.Controls.Add(this.btnStopSend);
             this.groupBox3.Controls.Add(this.chkShowFullLog);
             this.groupBox3.Controls.Add(this.btnClear);
             this.groupBox3.Controls.Add(this.txtLog);
@@ -950,11 +952,24 @@ namespace SMTPtool
             this.btnSend.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnSend.Location = new System.Drawing.Point(265, 17);
             this.btnSend.Name = "btnSend";
-            this.btnSend.Size = new System.Drawing.Size(140, 29);
+            this.btnSend.Size = new System.Drawing.Size(130, 29);
             this.btnSend.TabIndex = 4;
             this.btnSend.Text = "Send Test Email";
             this.btnSend.UseVisualStyleBackColor = true;
             this.btnSend.Click += new System.EventHandler(this.btnSend_Click);
+            // 
+            // btnStopSend
+            // 
+            this.btnStopSend.Enabled = false;
+            this.btnStopSend.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnStopSend.ForeColor = System.Drawing.Color.Crimson;
+            this.btnStopSend.Location = new System.Drawing.Point(403, 17);
+            this.btnStopSend.Name = "btnStopSend";
+            this.btnStopSend.Size = new System.Drawing.Size(110, 29);
+            this.btnStopSend.TabIndex = 5;
+            this.btnStopSend.Text = "Stop Sending";
+            this.btnStopSend.UseVisualStyleBackColor = true;
+            this.btnStopSend.Click += new System.EventHandler(this.btnStopSend_Click);
             // 
             // btnClear
             // 
@@ -1881,6 +1896,7 @@ namespace SMTPtool
         public System.Windows.Forms.Label lblThreadCount;
         public System.Windows.Forms.NumericUpDown nrcThreadCount;
         public System.Windows.Forms.Button btnSend;
+        public System.Windows.Forms.Button btnStopSend;
         public System.Windows.Forms.Button btnClear;
         public System.Windows.Forms.CheckBox chkShowFullLog;
         public System.Windows.Forms.RichTextBox txtLog;
