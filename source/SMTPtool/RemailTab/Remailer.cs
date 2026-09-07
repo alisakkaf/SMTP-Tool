@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Net.Sockets;
 using System.Drawing;
-using System.Threading;
 using System.IO;
-using System.Diagnostics;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 using SMTPtool.helper;
 
@@ -16,331 +16,369 @@ namespace SMTPtool
     {
         private string serverIP;
         private int serverPort;
-        private string commandToSend;
-        private string lastCommand = "none";
         private string mailFrom;
         private string rcptTo;
+        private string username = "";
+        private string password = "";
+        private bool useStartTls = false;
 
-        TcpClient clientSocket;
+        private TcpClient clientSocket;
+        private Stream activeStream;
+        private Thread ctThread;
+        private volatile bool cancellationRequested = false;
 
         private DateTime sendStart;
         private DateTime sendEnd;
-        private bool messageSent = false;
-        private bool mailFromSent = false;
 
         public Main _linkToMain;
         public bool sendSingle;
         public string fullMailBody;
-        private int chunkSize = 0;
 
-        Thread ctThread;
+        private static readonly Color ColorCommand = Color.FromArgb(100, 181, 246);
+        private static readonly Color ColorResponse = Color.FromArgb(129, 199, 132);
+        private static readonly Color ColorInfo = Color.FromArgb(255, 213, 79);
+        private static readonly Color ColorSuccess = Color.FromArgb(102, 187, 106);
+        private static readonly Color ColorError = Color.FromArgb(239, 83, 80);
 
         public Remailer(Main _linkToMain)
         {
             this._linkToMain = _linkToMain;
         }
 
+        public void Cancel()
+        {
+            cancellationRequested = true;
+            try
+            {
+                activeStream?.Close();
+                clientSocket?.Close();
+            }
+            catch { }
+            Log(">> [STOPPED] Transmission aborted by user.\r\n", ColorInfo);
+            ResetUi();
+        }
+
         public void connect()
         {
+            cancellationRequested = false;
             _linkToMain.btnRemail.Enabled = false;
-            if (_linkToMain.cbxRemailIP.Text.Equals(""))
-            {
-                _linkToMain.cbxRemailIP.Text = "192.168.0.1";
-            }
-            serverIP = _linkToMain.cbxRemailIP.Text;
-            _linkToMain.addServerToList(serverIP);
+            _linkToMain.btnStopRemail.Enabled = true;
 
-            try { int.Parse(_linkToMain.txtRemailPort.Text); }
-            catch { _linkToMain.txtRemailPort.Text = "25"; }
-            serverPort = int.Parse(_linkToMain.txtRemailPort.Text);
+            if (string.IsNullOrWhiteSpace(_linkToMain.cbxRemailIP.Text))
+            {
+                _linkToMain.cbxRemailIP.Text = !string.IsNullOrWhiteSpace(_linkToMain.cbxServer.Text) ? _linkToMain.cbxServer.Text : "127.0.0.1";
+            }
+            serverIP = _linkToMain.cbxRemailIP.Text.Trim();
+            _linkToMain.addServerToList(serverIP);
 
             try
             {
-                var addr = new System.Net.Mail.MailAddress(_linkToMain.cbxRemailFrom.Text);
-                mailFrom = _linkToMain.cbxRemailFrom.Text;
+                serverPort = int.Parse(_linkToMain.txtRemailPort.Text.Trim());
             }
             catch
             {
-                _linkToMain.cbxRemailFrom.Text = "";
-                mailFrom = _linkToMain.cbxRemailFrom.Text;
+                serverPort = 25;
+                _linkToMain.txtRemailPort.Text = "25";
+            }
+
+            mailFrom = _linkToMain.cbxRemailFrom.Text.Trim();
+            if (string.IsNullOrEmpty(mailFrom))
+            {
+                mailFrom = _linkToMain.cbxFrom.Text.Trim();
+                if (string.IsNullOrEmpty(mailFrom)) mailFrom = "tester@localhost";
+                _linkToMain.cbxRemailFrom.Text = mailFrom;
             }
             _linkToMain.addMailFromtoList(mailFrom);
 
-            try
+            rcptTo = _linkToMain.cbxRemailTo.Text.Trim();
+            if (string.IsNullOrEmpty(rcptTo))
             {
-                var addr = new System.Net.Mail.MailAddress(_linkToMain.cbxRemailTo.Text);
-                rcptTo = _linkToMain.cbxRemailTo.Text;
-            }
-            catch
-            {
-                _linkToMain.cbxRemailTo.Text = "default@test.test";
-                rcptTo = _linkToMain.cbxRemailTo.Text;
+                rcptTo = _linkToMain.cbxTo.Text.Trim();
+                if (string.IsNullOrEmpty(rcptTo)) rcptTo = "recipient@localhost";
+                _linkToMain.cbxRemailTo.Text = rcptTo;
             }
             _linkToMain.addRcptToToList(rcptTo);
 
-            try
-            {
-                clientSocket = new TcpClient();
-                clientSocket.Connect(serverIP, serverPort);
+            // Import credentials and security mode from Main
+            username = _linkToMain.txtUsername?.Text?.Trim() ?? "";
+            password = _linkToMain.txtPassword?.Text ?? "";
+            string securityMode = _linkToMain.cbxSecurityMode?.SelectedItem?.ToString() ?? "";
+            useStartTls = (serverPort == 587 || securityMode.IndexOf("STARTTLS", StringComparison.OrdinalIgnoreCase) >= 0);
 
-                ctThread = new Thread(new ThreadStart(run));
-                ctThread.IsBackground = true;
-                ctThread.Start();
-                sendStart = DateTime.Now;
-            }
-            catch (Exception exception)
+            ctThread = new Thread(WorkerRun)
             {
-                _linkToMain.txtRemailOutput.AppendText(">> Connection Error: " + exception.Message + "\r\n", Color.Red);
-                scrollDownOutput();
-                _linkToMain.btnRemail.Enabled = true;
-            }
+                IsBackground = true,
+                Name = "RemailerWorker"
+            };
+            ctThread.Start();
         }
 
-        public void run()
+        private void WorkerRun()
         {
-            while (true)
+            try
             {
-                string strMessage = read();
+                sendStart = DateTime.Now;
+                Log($">> Connecting to {serverIP}:{serverPort} (STARTTLS: {(useStartTls ? "Enabled" : "Disabled")})...\r\n", ColorInfo);
 
-                if (strMessage == null)
+                clientSocket = new TcpClient();
+                var connectTask = clientSocket.ConnectAsync(serverIP, serverPort);
+                if (!connectTask.Wait(10000))
                 {
-                    _linkToMain.Invoke((MethodInvoker)delegate()
+                    throw new TimeoutException($"Connection to {serverIP}:{serverPort} timed out (10s).");
+                }
+
+                if (cancellationRequested) return;
+
+                activeStream = clientSocket.GetStream();
+
+                // 1. Read Greeting (220)
+                string greeting = ReadSmtpResponse();
+                if (string.IsNullOrEmpty(greeting) || !greeting.StartsWith("220"))
+                {
+                    throw new Exception($"Unexpected greeting from server: {greeting}");
+                }
+
+                if (cancellationRequested) return;
+
+                // 2. Send EHLO
+                string localHost = System.Net.Dns.GetHostName();
+                string ehloResp = SendCommand($"EHLO {localHost}");
+
+                // Fallback to HELO if EHLO not recognized
+                if (ehloResp.StartsWith("500") || ehloResp.StartsWith("502"))
+                {
+                    ehloResp = SendCommand($"HELO {localHost}");
+                }
+
+                if (cancellationRequested) return;
+
+                // 3. STARTTLS Upgrade if applicable
+                bool supportsStartTls = ehloResp.IndexOf("STARTTLS", StringComparison.OrdinalIgnoreCase) >= 0;
+                if ((useStartTls || serverPort == 587) && supportsStartTls)
+                {
+                    string tlsResp = SendCommand("STARTTLS");
+                    if (tlsResp.StartsWith("220"))
                     {
-                        if (!messageSent)
-                        {
-                            _linkToMain.txtRemailOutput.AppendText(">> Error: Connection lost or server reset connection\r\n", Color.Red);
-                            scrollDownOutput();
-                        }
-                        clientSocket.Close();
-                        ctThread.Abort();
-                        _linkToMain.btnRemail.Enabled = true;
-                    });
-                    break;
-                }
-                else if (strMessage.StartsWith("220") && lastCommand.Equals("none"))
-                {
-                    string hostname = strMessage.Split(' ', ' ')[1];
-                    commandToSend = "HELO " + hostname;
-                    lastCommand = "helo";
-                    write();
-                }
-                else if ((strMessage.StartsWith("250") && mailFromSent == false) && lastCommand.Equals("helo"))
-                {
-                    commandToSend = "mail from: <" + mailFrom + ">";
-                    mailFromSent = true;
-                    lastCommand = "mailFrom";
-                    write();
-                }
-                else if ((strMessage.StartsWith("250 2.1.0") || strMessage.StartsWith("250 " + mailFrom) || strMessage.StartsWith("250 Go ahead")) && lastCommand.Equals("mailFrom"))
-                {
-                    commandToSend = "rcpt to: <" + rcptTo + ">";
-                    lastCommand = "rcpt";
-                    write();
-                }
-                else if ((strMessage.StartsWith("250 2.1.5") || strMessage.StartsWith("250 " + rcptTo) || strMessage.StartsWith("250 Go ahead")) && lastCommand.Equals("rcpt"))
-                {
-                    commandToSend = "data";
-                    lastCommand = "data";
-                    write();
-                }
-                else if (strMessage.StartsWith("354") && lastCommand.Equals("data"))
-                {
-                    if (fullMailBody == null)
-                    {
-                        fullMailBody = !string.IsNullOrEmpty(_linkToMain.remailTab?.currentRawMime)
-                            ? _linkToMain.remailTab.currentRawMime
-                            : _linkToMain.txtMailView.Text;
+                        Log(">> Negotiating TLS cryptographic layer...\r\n", ColorInfo);
+                        var sslStream = new SslStream(activeStream, false, (sender, certificate, chain, sslPolicyErrors) => true);
+                        sslStream.AuthenticateAsClient(serverIP);
+                        activeStream = sslStream;
+                        Log(">> TLS Established successfully.\r\n", ColorSuccess);
+
+                        // Re-issue EHLO over TLS
+                        ehloResp = SendCommand($"EHLO {localHost}");
                     }
-
-                    using (StringReader sr = new StringReader(fullMailBody))
-                    {
-                        string line;
-                        string singleChunk = "";
-                        List<string> messageChunks = new List<string>();
-                        int currentLine = 0;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-                            if (chunkSize == 0)
-                            {
-                                singleChunk = singleChunk + line + "\r\n";
-                            }
-                            else
-                            {
-                                if (currentLine < chunkSize)
-                                {
-                                    if (currentLine == chunkSize + 1)
-                                    {
-                                        singleChunk = singleChunk + line;
-                                    }
-                                    else
-                                    {
-                                        singleChunk = singleChunk + line + "\r\n";
-                                    }
-                                    currentLine++;
-                                }
-                                else
-                                {
-                                    messageChunks.Add(singleChunk);
-                                    singleChunk = "";
-                                    singleChunk = singleChunk + line + "\r\n";
-                                    currentLine = 0;
-                                }
-                            }
-                        }
-                        if (!singleChunk.Equals(""))
-                        {
-                            messageChunks.Add(singleChunk);
-                        }
-
-                        foreach (string chunk in messageChunks)
-                        {
-                            commandToSend = chunk;
-                            writeChunk();
-                        }
-                    }
-                    commandToSend = ".";
-                    lastCommand = "content";
-                    write();
                 }
-                else if (strMessage.StartsWith("250") && lastCommand.Equals("content"))
+
+                if (cancellationRequested) return;
+
+                // 4. AUTH LOGIN if credentials provided
+                if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
                 {
-                    messageSent = true;
-                    sendEnd = DateTime.Now;
-                    commandToSend = "quit";
-                    write();
-                }
-                else
-                {
-                    _linkToMain.Invoke((MethodInvoker)delegate()
+                    Log(">> Authenticating with server via AUTH LOGIN...\r\n", ColorInfo);
+                    string authResp = SendCommand("AUTH LOGIN");
+                    if (authResp.StartsWith("334"))
                     {
-                        if (messageSent)
+                        string userB64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(username));
+                        string userResp = SendCommand(userB64);
+                        if (userResp.StartsWith("334"))
                         {
-                            _linkToMain.txtRemailOutput.AppendText(">> Message Sent Successfully\r\n", Color.DarkGreen);
-                            TimeSpan duration = sendEnd - sendStart;
-                            _linkToMain.txtRemailOutput.AppendText(">> Duration: " + duration.TotalSeconds.ToString("0.00") + "s\r\n", Color.DarkGreen);
-                            scrollDownOutput();
-                            _linkToMain.btnRemail.Enabled = true;
-                            lastCommand = "none";
-                            mailFromSent = false;
-                            messageSent = false;
-                            clientSocket.Close();
-                            ctThread.Abort();
+                            string passB64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(password));
+                            string passResp = SendCommand(passB64);
+                            if (!passResp.StartsWith("235") && !passResp.StartsWith("250"))
+                            {
+                                throw new Exception($"Authentication failed: {passResp}");
+                            }
+                            Log(">> Authentication successful.\r\n", ColorSuccess);
                         }
                         else
                         {
-                            _linkToMain.txtRemailOutput.AppendText(">> Unexpected server response: " + strMessage + "\r\n", Color.Red);
-                            scrollDownOutput();
-                            _linkToMain.btnRemail.Enabled = true;
-                            clientSocket.Close();
-                            ctThread.Abort();
+                            throw new Exception($"Unexpected username prompt response: {userResp}");
                         }
-                    });
+                    }
+                }
+
+                if (cancellationRequested) return;
+
+                // 5. MAIL FROM
+                string mailFromResp = SendCommand($"MAIL FROM:<{mailFrom}>");
+                if (!mailFromResp.StartsWith("250"))
+                {
+                    throw new Exception($"MAIL FROM rejected: {mailFromResp}");
+                }
+
+                if (cancellationRequested) return;
+
+                // 6. RCPT TO
+                string rcptToResp = SendCommand($"RCPT TO:<{rcptTo}>");
+                if (!rcptToResp.StartsWith("250"))
+                {
+                    throw new Exception($"RCPT TO rejected: {rcptToResp}");
+                }
+
+                if (cancellationRequested) return;
+
+                // 7. DATA
+                string dataResp = SendCommand("DATA");
+                if (!dataResp.StartsWith("354"))
+                {
+                    throw new Exception($"DATA rejected: {dataResp}");
+                }
+
+                if (cancellationRequested) return;
+
+                // 8. Send message content
+                if (fullMailBody == null)
+                {
+                    fullMailBody = !string.IsNullOrEmpty(_linkToMain.remailTab?.currentRawMime)
+                        ? _linkToMain.remailTab.currentRawMime
+                        : _linkToMain.txtMailView.Text;
+                }
+
+                Log(">> Transmitting message payload...\r\n", ColorInfo);
+                SendRawPayload(fullMailBody);
+
+                // End with CRLF . CRLF
+                string endResp = SendCommand(".");
+                if (!endResp.StartsWith("250"))
+                {
+                    throw new Exception($"Message transmission error: {endResp}");
+                }
+
+                sendEnd = DateTime.Now;
+                TimeSpan duration = sendEnd - sendStart;
+                Log($">> Message Sent Successfully in {duration.TotalSeconds:0.00}s\r\n", ColorSuccess);
+
+                // 9. QUIT
+                try { SendCommand("QUIT"); } catch { }
+            }
+            catch (Exception ex)
+            {
+                if (!cancellationRequested)
+                {
+                    Log($">> Error: {ex.Message}\r\n", ColorError);
+                }
+            }
+            finally
+            {
+                try { activeStream?.Close(); } catch { }
+                try { clientSocket?.Close(); } catch { }
+                ResetUi();
+            }
+        }
+
+        private string SendCommand(string command)
+        {
+            if (cancellationRequested) return "";
+
+            byte[] bytes = Encoding.UTF8.GetBytes(command + "\r\n");
+            activeStream.Write(bytes, 0, bytes.Length);
+            activeStream.Flush();
+
+            if (sendSingle)
+            {
+                // Mask base64 password in UI log
+                string displayCmd = command;
+                if (!string.IsNullOrEmpty(password) && command == Convert.ToBase64String(Encoding.UTF8.GetBytes(password)))
+                {
+                    displayCmd = "******** [BASE64_PASSWORD]";
+                }
+                Log($">> {displayCmd}\r\n", ColorCommand);
+            }
+
+            return ReadSmtpResponse();
+        }
+
+        private void SendRawPayload(string payload)
+        {
+            using (StringReader reader = new StringReader(payload ?? ""))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    if (cancellationRequested) return;
+
+                    // Dot stuffing
+                    if (line.StartsWith(".")) line = "." + line;
+                    byte[] lineBytes = Encoding.UTF8.GetBytes(line + "\r\n");
+                    activeStream.Write(lineBytes, 0, lineBytes.Length);
+                }
+            }
+            activeStream.Flush();
+        }
+
+        private string ReadSmtpResponse()
+        {
+            if (cancellationRequested) return null;
+
+            byte[] buffer = new byte[8192];
+            StringBuilder sb = new StringBuilder();
+
+            while (true)
+            {
+                int read = activeStream.Read(buffer, 0, buffer.Length);
+                if (read <= 0) break;
+
+                string chunk = Encoding.UTF8.GetString(buffer, 0, read);
+                sb.Append(chunk);
+
+                string current = sb.ToString();
+                // SMTP responses complete when a line has 3 digits followed by space (or single line with CRLF)
+                if (IsCompleteSmtpResponse(current))
+                {
                     break;
                 }
             }
+
+            string result = sb.ToString();
+            if (sendSingle && !string.IsNullOrEmpty(result))
+            {
+                Log($"<< {result}", ColorResponse);
+            }
+            return result;
         }
 
-        public string read()
+        private bool IsCompleteSmtpResponse(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            string[] lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length == 0) return false;
+            string last = lines[lines.Length - 1].Trim();
+            return last.Length >= 3 && char.IsDigit(last[0]) && char.IsDigit(last[1]) && char.IsDigit(last[2]) &&
+                   (last.Length == 3 || last[3] == ' ');
+        }
+
+        private void Log(string text, Color color)
         {
             try
             {
-                byte[] messageBytes = new byte[8192];
-                int bytesRead = 0;
-                NetworkStream clientStream = clientSocket.GetStream();
-                ASCIIEncoding encoder = new ASCIIEncoding();
-                bytesRead = clientStream.Read(messageBytes, 0, 8192);
-                string strMessage = encoder.GetString(messageBytes, 0, bytesRead);
-
-                if (strMessage.Equals(""))
+                if (_linkToMain.IsDisposed || !_linkToMain.IsHandleCreated) return;
+                _linkToMain.BeginInvoke((MethodInvoker)delegate
                 {
-                    return null;
-                }
-
-                if (sendSingle)
-                {
-                    _linkToMain.Invoke((MethodInvoker)delegate()
+                    try
                     {
-                        _linkToMain.txtRemailOutput.AppendText("<< " + strMessage, Color.DarkBlue);
-                        scrollDownOutput();
-                    });
-                }
-
-                return strMessage;
-            }
-            catch (Exception)
-            {
-                scrollDownOutput();
-                clientSocket.Close();
-                return null;
-            }
-        }
-
-        public void write()
-        {
-            if (clientSocket.Connected)
-            {
-                if (sendSingle)
-                {
-                    scrollDownOutput();
-                }
-                NetworkStream clientStream = clientSocket.GetStream();
-                ASCIIEncoding encoder = new ASCIIEncoding();
-                byte[] buffer = encoder.GetBytes(commandToSend + "\r\n");
-
-                clientStream.Write(buffer, 0, buffer.Length);
-                clientStream.Flush();
-
-                if (sendSingle)
-                {
-                    _linkToMain.txtRemailOutput.AppendText(">> " + commandToSend + "\r\n", Color.Green);
-                    scrollDownOutput();
-                }
-
-                commandToSend = "";
-            }
-        }
-
-        public string getTimeStamp()
-        {
-            return DateTime.Now.ToString("MMM dd HH:mm:ss");
-        }
-
-        public void writeChunk()
-        {
-            if (clientSocket.Connected)
-            {
-                scrollDownOutput();
-                NetworkStream clientStream = clientSocket.GetStream();
-                ASCIIEncoding encoder = new ASCIIEncoding();
-                byte[] buffer = encoder.GetBytes(commandToSend);
-
-                clientStream.Write(buffer, 0, buffer.Length);
-                clientStream.Flush();
-
-                if (sendSingle)
-                {
-                    _linkToMain.txtRemailOutput.AppendText(">> \r\n" + commandToSend, Color.Green);
-                    scrollDownOutput();
-                }
-
-                commandToSend = "";
-            }
-        }
-
-        private void scrollDownOutput()
-        {
-            try
-            {
-                _linkToMain.Invoke((MethodInvoker)delegate()
-                {
-                    _linkToMain.txtRemailOutput.SelectionStart = _linkToMain.txtRemailOutput.Text.Length;
-                    _linkToMain.txtRemailOutput.ScrollToCaret();
+                        _linkToMain.txtRemailOutput.AppendText(text, color);
+                        _linkToMain.txtRemailOutput.SelectionStart = _linkToMain.txtRemailOutput.Text.Length;
+                        _linkToMain.txtRemailOutput.ScrollToCaret();
+                    }
+                    catch { }
                 });
             }
-            catch (Exception e)
+            catch { }
+        }
+
+        private void ResetUi()
+        {
+            try
             {
-                Debug.WriteLine(e.Data);
+                if (_linkToMain.IsDisposed || !_linkToMain.IsHandleCreated) return;
+                _linkToMain.BeginInvoke((MethodInvoker)delegate
+                {
+                    _linkToMain.btnRemail.Enabled = true;
+                    _linkToMain.btnStopRemail.Enabled = false;
+                });
             }
+            catch { }
         }
     }
 }
