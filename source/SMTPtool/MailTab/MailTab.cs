@@ -30,7 +30,9 @@ namespace SMTPtool
 
         public void btnSendClicked()
         {
+            SMTPsender.CancellationRequested = false;
             _linkToMain.btnSend.Enabled = false;
+            _linkToMain.btnStopSend.Enabled = true;
             _linkToMain.btnPing.Enabled = false;
             _linkToMain.btnSend.Text = "Sending...";
 
@@ -417,6 +419,32 @@ namespace SMTPtool
                 });
             };
             bw.RunWorkerAsync();
+        }
+
+        public void StopSending()
+        {
+            SMTPsender.CancellationRequested = true;
+            if (mySendTimer != null) mySendTimer.Enabled = false;
+
+            if (_linkToMain.InvokeRequired)
+            {
+                _linkToMain.Invoke((MethodInvoker)delegate
+                {
+                    _linkToMain.btnSend.Enabled = true;
+                    _linkToMain.btnPing.Enabled = true;
+                    _linkToMain.btnSend.Text = "Send Test Email";
+                    _linkToMain.btnStopSend.Enabled = false;
+                });
+            }
+            else
+            {
+                _linkToMain.btnSend.Enabled = true;
+                _linkToMain.btnPing.Enabled = true;
+                _linkToMain.btnSend.Text = "Send Test Email";
+                _linkToMain.btnStopSend.Enabled = false;
+            }
+
+            addLogMessage("[STOPPING] Transmission cancellation requested by user.", Color.OrangeRed);
         }
     }
 }
