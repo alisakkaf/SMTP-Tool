@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -20,16 +20,17 @@ namespace SMTPtool.Services
 
     public class UpdateChecker
     {
-        public const string CURRENT_VERSION = "v1.0";
+        public static string CurrentVersion => "v" + Main.CURRENT_VERSION;
         private const string GITHUB_API_URL = "https://api.github.com/repos/alisakkaf/SMTP-Tool/releases/latest";
         private const string GITHUB_REPO_URL = "https://github.com/alisakkaf/SMTP-Tool";
 
         public static async Task<UpdateInfo> CheckForUpdatesAsync()
         {
+            string localVer = CurrentVersion;
             var info = new UpdateInfo
             {
-                CurrentVersion = CURRENT_VERSION,
-                LatestVersion = CURRENT_VERSION,
+                CurrentVersion = localVer,
+                LatestVersion = localVer,
                 ReleaseUrl = GITHUB_REPO_URL
             };
 
@@ -39,7 +40,7 @@ namespace SMTPtool.Services
                 {
                     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
                     HttpWebRequest request = (HttpWebRequest)WebRequest.Create(GITHUB_API_URL);
-                    request.UserAgent = "SMTP-Tool-Client-v1.0";
+                    request.UserAgent = "SMTP-Tool-Client-" + localVer;
                     request.Timeout = 5000;
                     request.ReadWriteTimeout = 5000;
 
@@ -64,7 +65,7 @@ namespace SMTPtool.Services
                                 info.ReleaseUrl = urlMatch.Groups[1].Value;
                             }
 
-                            if (IsVersionHigher(normalizedTag, CURRENT_VERSION))
+                            if (IsVersionHigher(normalizedTag, localVer))
                             {
                                 info.IsNewVersionAvailable = true;
                                 info.Message = "New version " + normalizedTag + " is available on GitHub!";
@@ -72,7 +73,7 @@ namespace SMTPtool.Services
                             else
                             {
                                 info.IsNewVersionAvailable = false;
-                                info.Message = "SMTP Tool " + CURRENT_VERSION + " is up to date.";
+                                info.Message = "SMTP Tool " + localVer + " is up to date.";
                             }
                         }
                     }
@@ -80,7 +81,7 @@ namespace SMTPtool.Services
                 catch (Exception ex)
                 {
                     info.IsNewVersionAvailable = false;
-                    info.Message = "SMTP Tool " + CURRENT_VERSION + " | AliSakkaF (alisakkaf.com)";
+                    info.Message = "SMTP Tool " + localVer + " | AliSakkaF (alisakkaf.com)";
                     info.ReleaseNotes = ex.Message;
                 }
             });
