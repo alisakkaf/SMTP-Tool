@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -29,173 +29,172 @@ namespace SMTPtool
 
         System.Net.Sockets.TcpClient clientSocket = new System.Net.Sockets.TcpClient();
 
-        System.Timers.Timer connectionDelayTimer;
-        System.Timers.Timer reconnectionDelayTimer;
-
         public SessionTab(Main _linkToMain)
         {
             this._linkToMain = _linkToMain;
             this._linkToMain.txtSessionCommand.KeyDown += new System.Windows.Forms.KeyEventHandler(this.input_KeyDown);
         }
 
-        public void connect()
+        private static readonly Color ColorCommand = Color.FromArgb(100, 181, 246);
+        private static readonly Color ColorResponse = Color.FromArgb(129, 199, 132);
+        private static readonly Color ColorInfo = Color.FromArgb(255, 213, 79);
+        private static readonly Color ColorSuccess = Color.FromArgb(102, 187, 106);
+        private static readonly Color ColorError = Color.FromArgb(239, 83, 80);
+
+        public void syncFromMain()
         {
-            connectionDelayTimer = new System.Timers.Timer();
-            connectionDelayTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
-            connectionDelayTimer.Interval = 100;
-            connectionDelayTimer.Enabled = true;
+            if (_linkToMain == null) return;
+            if (!string.IsNullOrWhiteSpace(_linkToMain.cbxServer.Text))
+                _linkToMain.cbxSessionServer.Text = _linkToMain.cbxServer.Text;
+            if (!string.IsNullOrWhiteSpace(_linkToMain.txtPort.Text))
+                _linkToMain.cbxSessionPort.Text = _linkToMain.txtPort.Text;
+            if (!string.IsNullOrWhiteSpace(_linkToMain.cbxFrom.Text))
+                _linkToMain.cbxSessionFrom.Text = _linkToMain.cbxFrom.Text;
+            if (!string.IsNullOrWhiteSpace(_linkToMain.cbxTo.Text))
+                _linkToMain.cbxSessionTo.Text = _linkToMain.cbxTo.Text;
+            _linkToMain.txtSessionOutput.AppendText(">> Synchronized configuration from Main Tab.\r\n", ColorInfo);
+            scrollDownOutput();
         }
 
-        private void OnTimedEvent(object source, ElapsedEventArgs e)
+        public void disconnect()
         {
-            connectionDelayTimer.Stop();
+            try
+            {
+                clientSocket?.Close();
+                ctThread?.Abort();
+            }
+            catch { }
+            isConnected = false;
+            _linkToMain.Invoke((MethodInvoker)delegate
+            {
+                _linkToMain.txtSessionOutput.AppendText(">> Disconnected from server.\r\n", ColorError);
+                _linkToMain.btnSessionConnect.Enabled = true;
+                _linkToMain.btnSessionDisconnect.Enabled = false;
+                _linkToMain.btnSessionSendLine.Enabled = false;
+                _linkToMain.txtSessionCommand.ReadOnly = true;
+                scrollDownOutput();
+            });
+        }
+
+        public void connect()
+        {
             start();
         }
 
         public void start()
         {
-
             _linkToMain.Invoke((MethodInvoker)delegate()
             {
-                if (_linkToMain.cbxSessionServer.Text.Equals(""))
+                if (string.IsNullOrWhiteSpace(_linkToMain.cbxSessionServer.Text))
                 {
-                    serverIP = "192.168.0.1";
+                    _linkToMain.cbxSessionServer.Text = !string.IsNullOrWhiteSpace(_linkToMain.cbxServer.Text) ? _linkToMain.cbxServer.Text : "127.0.0.1";
                 }
-                else
+                serverIP = _linkToMain.cbxSessionServer.Text.Trim();
+
+                try
                 {
-                    serverIP = _linkToMain.cbxSessionServer.Text;
+                    serverPort = int.Parse(_linkToMain.cbxSessionPort.Text.Trim());
                 }
+                catch
+                {
+                    serverPort = 25;
+                    _linkToMain.cbxSessionPort.Text = "25";
+                }
+
+                _linkToMain.btnSessionConnect.Enabled = false;
+                _linkToMain.btnSessionDisconnect.Enabled = true;
+                _linkToMain.txtSessionOutput.AppendText($">> Connecting to {serverIP}:{serverPort}...\r\n", ColorInfo);
+                scrollDownOutput();
             });
 
-            try
+            ThreadPool.QueueUserWorkItem(_ =>
             {
-                serverPort = int.Parse(_linkToMain.cbxSessionPort.Text);
-            }
-            catch (Exception)
-            {
-                serverPort = 25;
-            }
+                try
+                {
+                    clientSocket = new System.Net.Sockets.TcpClient();
+                    var connectTask = clientSocket.ConnectAsync(serverIP, serverPort);
+                    if (!connectTask.Wait(10000))
+                    {
+                        throw new TimeoutException("Connection attempt timed out (10s).");
+                    }
 
-            try
-            {
-                _linkToMain.txtSessionOutput.AppendText("Connecting to " + serverIP + " on port" + serverPort + "\r\n", Color.Red);
-                clientSocket.Connect(serverIP, serverPort);
-                ctThread = new System.Threading.Thread(new ThreadStart(Run));
-                ctThread.IsBackground = true;
-                ctThread.Name = "asdf";
-                ctThread.Start();
-                _linkToMain.Invoke((MethodInvoker)delegate()
+                    isConnected = true;
+                    _linkToMain.Invoke((MethodInvoker)delegate()
+                    {
+                        _linkToMain.txtSessionOutput.AppendText(">> Connected successfully!\r\n", ColorSuccess);
+                        _linkToMain.btnSessionSendLine.Enabled = true;
+                        _linkToMain.txtSessionCommand.ReadOnly = false;
+                        scrollDownOutput();
+                    });
+
+                    ctThread = new System.Threading.Thread(new ThreadStart(Run))
+                    {
+                        IsBackground = true,
+                        Name = "SessionWorker"
+                    };
+                    ctThread.Start();
+                }
+                catch (Exception ex)
                 {
-                    _linkToMain.txtSessionOutput.AppendText("Connected\r\n", Color.Red);
-                    scrollDownOutput();
-                });
-            }
-            catch (Exception)
-            {
-                _linkToMain.Invoke((MethodInvoker)delegate()
-                {
-                    _linkToMain.txtSessionOutput.AppendText("Connection Error\r\n", Color.Red);
-                    scrollDownOutput();
-                });
-            }
+                    isConnected = false;
+                    _linkToMain.Invoke((MethodInvoker)delegate()
+                    {
+                        _linkToMain.txtSessionOutput.AppendText($">> Connection Error: {ex.Message}\r\n", ColorError);
+                        _linkToMain.btnSessionConnect.Enabled = true;
+                        _linkToMain.btnSessionDisconnect.Enabled = false;
+                        scrollDownOutput();
+                    });
+                }
+            });
         }
 
         public void reconnect()
         {
-            reconnectionDelayTimer = new System.Timers.Timer();
-            reconnectionDelayTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent2);
-            reconnectionDelayTimer.Interval = 100;
-            reconnectionDelayTimer.Enabled = true;
-            reconnectionDelayTimer.Start();
-        }
-
-        private void OnTimedEvent2(object source, ElapsedEventArgs e) {
-            Debug.WriteLine("TIMER2 FIRED");
-            reconnectionDelayTimer.Enabled = false;
-            reconnectionDelayTimer.Stop();
-            startReconnect();
-        }
-
-        private void startReconnect()
-        {
-            _linkToMain.Invoke((MethodInvoker)delegate()
-            {
-                if (_linkToMain.cbxSessionServer.Text.Equals(""))
-                {
-                    serverIP = "192.168.0.1";
-                }
-                else
-                {
-                    serverIP = _linkToMain.cbxSessionServer.Text;
-                }
-            });
-
-            try
-            {
-                serverPort = int.Parse(_linkToMain.cbxSessionPort.Text);
-            }
-            catch (Exception)
-            {
-                serverPort = 25;
-            }
-            try
-            {
-                _linkToMain.Invoke((MethodInvoker)delegate()
-                {
-                    _linkToMain.txtSessionOutput.AppendText("Connecting to " + serverIP + " on port" + serverPort + "\r\n\r\n", Color.Red);
-                });
-
-                clientSocket = new System.Net.Sockets.TcpClient();
-                clientSocket.Connect(serverIP, serverPort);
-                ctThread = new System.Threading.Thread(new ThreadStart(Run));
-                ctThread.IsBackground = true;
-                ctThread.Start();
-            }
-            catch (Exception)
-            {
-                _linkToMain.txtSessionOutput.AppendText("Connection Error\r\n", Color.Red);
-            }
+            disconnect();
+            start();
         }
 
         public void Run()
         {
             String strMessage;
 
-            while (true)
+            while (isConnected)
             {
                 try
                 {
                     strMessage = Read();
-                    if (strMessage.Equals(""))
+                    if (strMessage == null || strMessage.Equals(""))
                     {
                         _linkToMain.Invoke((MethodInvoker)delegate()
                         {
-                            _linkToMain.txtSessionOutput.AppendText("Connection closed\r\n", Color.Red);
+                            _linkToMain.txtSessionOutput.AppendText(">> Connection closed by remote host.\r\n", ColorError);
                             scrollDownOutput();
                             clientSocket.Close();
-                            ctThread.Abort();
+                            _linkToMain.btnSessionConnect.Enabled = true;
+                            _linkToMain.btnSessionDisconnect.Enabled = false;
+                            _linkToMain.btnSessionSendLine.Enabled = false;
+                            _linkToMain.txtSessionCommand.ReadOnly = true;
                         });
                         break;
                     }
                     _linkToMain.Invoke((MethodInvoker)delegate()
                     {
-                        _linkToMain.txtSessionOutput.AppendText("<< " + strMessage, Color.Blue);
+                        _linkToMain.txtSessionOutput.AppendText("<< " + strMessage, ColorResponse);
                         scrollDownOutput();
                     });
                 }
                 catch (Exception exception)
                 {
-                    ctThread.Abort();
                     _linkToMain.Invoke((MethodInvoker)delegate()
                     {
-                        _linkToMain.txtSessionOutput.AppendText("\r\n Error - Connection closed\r\n", Color.Red);
+                        _linkToMain.txtSessionOutput.AppendText("\r\n>> Error: Connection terminated (" + exception.Message + ")\r\n", ColorError);
                         scrollDownOutput();
+                        _linkToMain.btnSessionConnect.Enabled = true;
+                        _linkToMain.btnSessionDisconnect.Enabled = false;
+                        _linkToMain.btnSessionSendLine.Enabled = false;
+                        _linkToMain.txtSessionCommand.ReadOnly = true;
                     });
-
-                    clientSocket.Close();
-                    _linkToMain.btnSessionSendLine.Enabled = false;
-                    _linkToMain.txtSessionCommand.ReadOnly = true;
-                    Debug.WriteLine("EEEEEEEEEEEEEEERRROR: RUN " + exception.Message);
+                    try { clientSocket.Close(); } catch { }
                     break;
                 }
             }
@@ -269,7 +268,7 @@ namespace SMTPtool
                 clientStream.Write(buffer, 0, buffer.Length);
                 clientStream.Flush();
 
-                _linkToMain.txtSessionOutput.AppendText(">> " + commandToSend + "\r\n", Color.Green);
+                _linkToMain.txtSessionOutput.AppendText(">> " + commandToSend + "\r\n", ColorCommand);
                 scrollDownOutput();
                 commandToSend = "";
             }
