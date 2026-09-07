@@ -27,6 +27,7 @@ namespace SMTPtool
 
     public class SMTPsender
     {
+        public static volatile bool CancellationRequested = false;
         private SmtpClient client;
         private Main linkToMain;
         private List<MailMessage> mailList = new List<MailMessage>();
@@ -111,6 +112,19 @@ namespace SMTPtool
         {
             for (int i = 0; i < mailList.Count; i++)
             {
+                if (CancellationRequested)
+                {
+                    var cancelResult = new SmtpSendResult
+                    {
+                        Success = false,
+                        Message = "Transmission stopped by user.",
+                        TotalDuration = TimeSpan.Zero,
+                        Transcript = $"[{DateTime.Now:HH:mm:ss.fff}] [STOPPED] Transmission cancelled by user."
+                    };
+                    linkToMain.OnMessageSentCompleted(cancelResult);
+                    break;
+                }
+
                 MailMessage currentMail = mailList[i];
                 var result = new SmtpSendResult();
                 var transcript = new StringBuilder();
@@ -160,6 +174,16 @@ namespace SMTPtool
                 {
                     tcpWatch.Stop();
                     transcript.AppendLine($"[{DateTime.Now:HH:mm:ss.fff}] [STEP 2] TCP Connect Failed: {tcpEx.Message}");
+                }
+
+                if (CancellationRequested)
+                {
+                    transcript.AppendLine($"[{DateTime.Now:HH:mm:ss.fff}] [STOPPED] Transmission aborted by user before data transfer.");
+                    result.Success = false;
+                    result.Message = "Transmission stopped by user.";
+                    result.Transcript = transcript.ToString();
+                    linkToMain.OnMessageSentCompleted(result);
+                    break;
                 }
 
                 Stopwatch sendWatch = Stopwatch.StartNew();
