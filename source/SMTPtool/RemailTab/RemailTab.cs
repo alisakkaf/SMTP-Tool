@@ -594,56 +594,66 @@ namespace SMTPtool
             deleteFile(_linkToMain.treeViewMails.SelectedNode.Tag.ToString());
         }
 
+        public void syncFromMain()
+        {
+            if (_linkToMain == null) return;
+            if (!string.IsNullOrWhiteSpace(_linkToMain.cbxServer.Text))
+                _linkToMain.cbxRemailIP.Text = _linkToMain.cbxServer.Text;
+            if (!string.IsNullOrWhiteSpace(_linkToMain.txtPort.Text))
+                _linkToMain.txtRemailPort.Text = _linkToMain.txtPort.Text;
+            if (!string.IsNullOrWhiteSpace(_linkToMain.cbxFrom.Text))
+                _linkToMain.cbxRemailFrom.Text = _linkToMain.cbxFrom.Text;
+            if (!string.IsNullOrWhiteSpace(_linkToMain.cbxTo.Text))
+                _linkToMain.cbxRemailTo.Text = _linkToMain.cbxTo.Text;
+            _linkToMain.txtRemailOutput.AppendText(">> Synchronized settings & credentials from Main Tab.\r\n", Color.FromArgb(255, 213, 79));
+        }
+
+        public void btnStopClicked()
+        {
+            myRemailer?.Cancel();
+        }
+
         public void btnRemailClicked()
         {
+            if (_linkToMain.treeViewMails.SelectedNode == null)
+            {
+                MessageBox.Show("Please select an email template or folder first.", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             FileAttributes attr = File.GetAttributes(@"" + _linkToMain.treeViewMails.SelectedNode.Tag);
             if (attr.HasFlag(FileAttributes.Directory))
             {
-
-                _linkToMain.txtMailView.Text = "Click Remail to send all messages in the selected folder.";
-
+                _linkToMain.txtMailView.Text = "Sending messages in the selected folder...";
                 if (_linkToMain.treeViewMails.SelectedNode.Nodes.Count > 0)
                 {
-                    _linkToMain.btnRemail.Enabled = true;
+                    var nodes = new List<TreeNode>();
+                    foreach (TreeNode n in _linkToMain.treeViewMails.SelectedNode.Nodes) nodes.Add(n);
 
-                    if (_linkToMain.cbxRemailIP.Text.Equals(""))
+                    ThreadPool.QueueUserWorkItem(_ =>
                     {
-                        _linkToMain.cbxRemailIP.Text = "192.168.0.1";
-                    }
-
-                    try { int.Parse(_linkToMain.txtRemailPort.Text); }
-                    catch { _linkToMain.txtRemailPort.Text = "25"; }
-
-                    _linkToMain.txtRemailOutput.AppendText(DateTime.Now.ToString("MMM dd HH:mm:ss") + " - Connecting to " + _linkToMain.cbxRemailIP.Text + " on port" + int.Parse(_linkToMain.txtRemailPort.Text) + "\r\n", Color.Red);
-
-                    foreach (TreeNode myNode in _linkToMain.treeViewMails.SelectedNode.Nodes)
-                    {
-                        String mailPath = myNode.Tag.ToString();
-                        StreamReader streamReader = new StreamReader(mailPath, Encoding.UTF8);
-                        String text = streamReader.ReadToEnd();
-                        streamReader.Close();
-                        myRemailer = new Remailer(_linkToMain);
-                        myRemailer.sendSingle = false;
-                        myRemailer.fullMailBody = text;
-
-                        myRemailer.connect();
-                    }
+                        foreach (TreeNode myNode in nodes)
+                        {
+                            try
+                            {
+                                string mailPath = myNode.Tag.ToString();
+                                string text = File.ReadAllText(mailPath, Encoding.UTF8);
+                                myRemailer = new Remailer(_linkToMain);
+                                myRemailer.sendSingle = false;
+                                myRemailer.fullMailBody = text;
+                                myRemailer.connect();
+                            }
+                            catch { }
+                        }
+                    });
                 }
-                else
-                {
-                    _linkToMain.btnRemail.Enabled = false;
-                }
-
             }
             else
-
             {
-                String mailPath = _linkToMain.treeViewMails.SelectedNode.Tag.ToString();
                 myRemailer = new Remailer(_linkToMain);
                 myRemailer.sendSingle = true;
                 myRemailer.connect();
             }
-
         }
 
         internal void btnRenameClicked()
