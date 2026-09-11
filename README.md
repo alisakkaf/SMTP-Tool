@@ -183,6 +183,12 @@ msbuild source/SMTPtool.sln /p:Configuration=Release
 ./source/SMTPtool/bin/Release/SMTPTool.exe
 ```
 
+
+---
+
+<!-- DONATE_SECTION:START -->
+<!-- DONATE_SECTION:END -->
+
 ---
 
 ## 🤝 Contributing & Community Support
